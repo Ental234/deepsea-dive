@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body{margin:0;}
+    @keyframes pulseRing{0%{transform:scale(0.85);opacity:.9}70%{transform:scale(1.5);opacity:0}100%{transform:scale(1.5);opacity:0}}
+    @keyframes floatY{0%{transform:translateY(0px)}50%{transform:translateY(-8px)}100%{transform:translateY(0px)}}
+    @keyframes bubbleShine{0%{opacity:.5}50%{opacity:1}100%{opacity:.5}}
+  </style>
+</helmet>
+
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:oklch(96% 0.01 230);font-family:'Nunito',sans-serif;padding:40px 0;box-sizing:border-box">
+  <div style="width:406px;padding:8px;border-radius:48px;background:oklch(22% 0.03 240);box-shadow:0 30px 70px -25px rgba(20,30,50,0.45)">
+    <div style="width:390px;height:844px;border-radius:40px;overflow:hidden;position:relative;background:oklch(30% 0.08 240)">
+
+      <sc-if value="{{ isStart }}" hint-placeholder-val="{{ true }}">
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg, oklch(85% 0.06 220) 0%, oklch(58% 0.13 233) 52%, oklch(33% 0.09 240) 100%);display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:88px 24px 48px;box-sizing:border-box">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
+            <div style="font-family:'Baloo 2',sans-serif;font-weight:800;font-size:44px;color:#fff;text-shadow:0 4px 18px rgba(0,0,0,0.25);letter-spacing:-0.5px">딥씨 다이브</div>
+            <div style="font-size:15px;color:oklch(96% 0.02 220);opacity:0.9">해파리를 피하고, 최대한 오래 생존하세요</div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;align-items:center;gap:14px;animation:floatY 3.2s ease-in-out infinite">
+            <div style="position:relative;width:64px;height:44px">
+              <div style="width:64px;height:44px;border-radius:60% 40% 50% 50% / 60% 60% 40% 40%;background:linear-gradient(135deg, {{ accent }}, oklch(60% 0.14 40))"></div>
+              <div style="position:absolute;left:-16px;top:12px;width:20px;height:20px;background:{{ accent }};clip-path:polygon(100% 0, 100% 100%, 0 50%)"></div>
+              <div style="position:absolute;right:12px;top:12px;width:9px;height:9px;border-radius:50%;background:#fff"></div>
+              <div style="position:absolute;right:9px;top:14px;width:5px;height:5px;border-radius:50%;background:oklch(25% 0.02 240)"></div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;align-items:center;gap:14px;width:100%">
+            <button onClick="{{ startGame }}" style="width:220px;padding:16px 0;border:none;border-radius:999px;background:{{ accent }};color:#fff;font-family:'Nunito',sans-serif;font-weight:800;font-size:18px;box-shadow:0 10px 24px -8px rgba(0,0,0,0.35);cursor:pointer">시작하기</button>
+            <button onClick="{{ goRanking }}" style="width:220px;padding:14px 0;border:2px solid rgba(255,255,255,0.6);border-radius:999px;background:transparent;color:#fff;font-family:'Nunito',sans-serif;font-weight:700;font-size:16px;cursor:pointer">랭킹 보기</button>
+            <div style="margin-top:6px;font-size:13px;color:rgba(255,255,255,0.75)">화면을 탭해서 물고기를 이동시켜요</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isGame }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0">
+          <div style="position:absolute;top:0;left:0;right:0;height:70px;z-index:5;display:flex;align-items:center;justify-content:space-between;padding:0 18px;background:linear-gradient(180deg, rgba(0,0,0,0.32), rgba(0,0,0,0))">
+            <div style="display:flex;flex-direction:column">
+              <div style="font-size:11px;color:rgba(255,255,255,0.7);font-weight:700;letter-spacing:0.5px">SCORE</div>
+              <div style="font-size:22px;font-weight:800;color:#fff;font-family:'Baloo 2',sans-serif">{{ score }}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.15);border-radius:999px;padding:6px 14px">
+              <span style="font-size:13px;font-weight:700;color:#fff">LV {{ level }}</span>
+            </div>
+          </div>
+
+          <div style="position:absolute;top:74px;left:18px;right:18px;z-index:5;display:flex;gap:6px">
+            <sc-for list="{{ unlocks }}" as="u" hint-placeholder-count="5">
+              <div style="width:30px;height:30px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:{{ u.bg }};opacity:{{ u.opacity }};box-shadow:0 2px 6px -2px rgba(0,0,0,0.3)">
+                <div style="width:12px;height:12px;border-radius:50%;background:#fff;opacity:0.85"></div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div onClick="{{ onAreaClick }}" style="position:absolute;top:70px;left:0;width:390px;height:774px;overflow:hidden;background:linear-gradient(180deg, oklch(58% 0.11 222) 0%, oklch(38% 0.09 235) 55%, oklch(24% 0.07 245) 100%);cursor:pointer">
+
+            <sc-for list="{{ jellies }}" as="j" hint-placeholder-count="4">
+              <div style="position:absolute;left:{{ j.left }};top:{{ j.top }};display:flex;flex-direction:column;align-items:center;pointer-events:none">
+                <div style="width:30px;height:22px;border-radius:50% 50% 12% 12% / 60% 60% 20% 20%;background:linear-gradient(160deg, oklch(80% 0.1 335), oklch(66% 0.14 330));box-shadow:0 0 10px -2px oklch(70% 0.14 330 / 0.6)"></div>
+                <div style="display:flex;gap:3px;margin-top:-2px">
+                  <div style="width:2px;height:12px;background:oklch(70% 0.1 330 / 0.7);border-radius:0 0 3px 3px"></div>
+                  <div style="width:2px;height:16px;background:oklch(70% 0.1 330 / 0.7);border-radius:0 0 3px 3px"></div>
+                  <div style="width:2px;height:12px;background:oklch(70% 0.1 330 / 0.7);border-radius:0 0 3px 3px"></div>
+                </div>
+              </div>
+            </sc-for>
+
+            <sc-for list="{{ items }}" as="it" hint-placeholder-count="1">
+              <div style="position:absolute;left:{{ it.left }};top:{{ it.top }};width:32px;height:32px;border-radius:50%;background:radial-gradient(circle at 35% 30%, rgba(255,255,255,0.9), oklch(78% 0.06 220 / 0.6));border:2px solid rgba(255,255,255,0.8);animation:bubbleShine 1.6s ease-in-out infinite;pointer-events:none"></div>
+            </sc-for>
+
+            <div style="position:absolute;left:{{ fishLeft }};top:{{ fishTop }};width:30px;height:22px;pointer-events:none">
+              <sc-if value="{{ shieldActive }}" hint-placeholder-val="{{ false }}">
+                <div style="position:absolute;left:-9px;top:-9px;width:48px;height:40px;border-radius:50%;border:3px solid rgba(255,255,255,0.85);animation:pulseRing 1s ease-out infinite"></div>
+              </sc-if>
+              <div style="width:30px;height:22px;border-radius:60% 40% 50% 50% / 60% 60% 40% 40%;background:linear-gradient(135deg, {{ accent }}, oklch(60% 0.14 40))"></div>
+              <div style="position:absolute;left:-13px;top:5px;width:16px;height:16px;background:{{ accent }};clip-path:polygon(100% 0, 100% 100%, 0 50%)"></div>
+              <div style="position:absolute;right:6px;top:5px;width:6px;height:6px;border-radius:50%;background:#fff"></div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isGameOver }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg, oklch(30% 0.08 240) 0%, oklch(20% 0.06 245) 100%);display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box">
+          <div style="width:100%;background:oklch(97% 0.005 240);border-radius:24px;padding:32px 24px;display:flex;flex-direction:column;align-items:center;gap:18px;box-shadow:0 20px 40px -10px rgba(0,0,0,0.4)">
+            <div style="font-family:'Baloo 2',sans-serif;font-weight:800;font-size:24px;color:oklch(28% 0.03 240)">게임 종료</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+              <div style="font-size:12px;color:oklch(50% 0.02 240);font-weight:700;letter-spacing:0.5px">FINAL SCORE</div>
+              <div style="font-size:40px;font-weight:800;color:{{ accent }};font-family:'Baloo 2',sans-serif">{{ gameOverScore }}</div>
+              <div style="font-size:13px;color:oklch(55% 0.02 240)">생존 시간 {{ gameOverSeconds }}초</div>
+            </div>
+            <input type="text" value="{{ nickname }}" onChange="{{ onNickChange }}" placeholder="닉네임 입력 (최대 20자)" style="width:100%;box-sizing:border-box;padding:14px 16px;border-radius:14px;border:2px solid oklch(90% 0.01 240);font-size:15px;font-family:'Nunito',sans-serif;outline:none;text-align:center"></input>
+            <button onClick="{{ submitScore }}" style="width:100%;padding:15px 0;border:none;border-radius:999px;background:{{ accent }};color:#fff;font-weight:800;font-size:16px;font-family:'Nunito',sans-serif;cursor:pointer">랭킹 등록</button>
+            <button onClick="{{ restart }}" style="width:100%;padding:13px 0;border:2px solid oklch(88% 0.01 240);border-radius:999px;background:transparent;color:oklch(35% 0.02 240);font-weight:700;font-size:15px;font-family:'Nunito',sans-serif;cursor:pointer">다시 시작</button>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isRanking }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;background:oklch(97% 0.005 240);display:flex;flex-direction:column;padding:56px 20px 24px;box-sizing:border-box">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+            <button onClick="{{ goStart }}" style="border:none;background:oklch(92% 0.01 240);border-radius:10px;width:34px;height:34px;font-size:16px;color:oklch(35% 0.02 240);cursor:pointer">←</button>
+            <div style="font-family:'Baloo 2',sans-serif;font-weight:800;font-size:22px;color:oklch(28% 0.03 240)">명예의 전당</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;overflow-y:auto">
+            <sc-for list="{{ rankings }}" as="r" hint-placeholder-count="8">
+              <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:{{ r.rowBg }}">
+                <div style="width:28px;height:28px;border-radius:50%;background:{{ r.badgeBg }};color:{{ r.badgeText }};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0">{{ r.rank }}</div>
+                <div style="flex:1;font-weight:700;font-size:14px;color:oklch(30% 0.02 240)">{{ r.nickname }}</div>
+                <div style="font-weight:800;font-size:15px;color:oklch(30% 0.02 240)">{{ r.score }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:420,&quot;height&quot;:900},&quot;difficulty&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;normal&quot;,&quot;options&quot;:[&quot;easy&quot;,&quot;normal&quot;,&quot;hard&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Gameplay&quot;},&quot;itemDropRate&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0.5,&quot;min&quot;:0.2,&quot;max&quot;:1,&quot;step&quot;:0.1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Gameplay&quot;},&quot;accentColor&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#ff8a65&quot;,&quot;options&quot;:[&quot;#ff8a65&quot;,&quot;#4fb8af&quot;,&quot;#ffd166&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Style&quot;}}">
+const AREA_W = 390, AREA_H = 774, FISH_R = 15, JELLY_R = 15, ITEM_R = 16;
+const NAMES = ['거품 실드','산호가시 유도탄','가시복 모드','고래상어 라이드','산호 배리어'];
+const INITIAL_RANKINGS = [
+  {nickname:'바다지킴이', score:8420},{nickname:'물고기왕', score:7960},{nickname:'해파리스킬러', score:7510},
+  {nickname:'심해탐험가', score:6890},{nickname:'파도타기', score:6340},{nickname:'짱물고기', score:5920},
+  {nickname:'거품술사', score:5480},{nickname:'고래상어팬', score:5010},{nickname:'산호지킴이', score:4620},
+  {nickname:'푸른바다', score:4210},{nickname:'느긋한물고기', score:3870},{nickname:'딥씨러버', score:3520},
+  {nickname:'헤엄왕', score:3140},{nickname:'조개껌', score:2810},{nickname:'가시복러버', score:2470},
+  {nickname:'물결타기', score:2130},{nickname:'바다소년', score:1820},{nickname:'플랑크톤', score:1450},
+  {nickname:'초보다이버', score:980},{nickname:'첫도전', score:540}
+];
+
+class Component extends DCLogic {
+  state = {
+    screen: 'start', fish: {x: AREA_W/2, y: AREA_H-100}, target: null,
+    jellies: [], items: [], shieldUntil: 0, score: 0, startedAt: 0,
+    lastJellySpawn: 0, lastItemSpawn: 0, nextJellyId: 1, nextItemId: 1,
+    nickname: '', gameOverScore: 0, gameOverSeconds: 0,
+    rankings: INITIAL_RANKINGS.map(r => ({...r, isYou: false})),
+  };
+
+  componentDidMount() {
+    this._raf = requestAnimationFrame(this.tick);
+  }
+  componentWillUnmount() {
+    cancelAnimationFrame(this._raf);
+  }
+
+  tick = (now) => {
+    this._raf = requestAnimationFrame(this.tick);
+    if (this.state.screen !== 'game') { this._lastTime = now; return; }
+    const dt = this._lastTime ? Math.min((now - this._lastTime) / 1000, 0.05) : 0.016;
+    this._lastTime = now;
+    this.update(dt, now);
+  };
+
+  update(dt, now) {
+    this.setState((s) => {
+      if (s.screen !== 'game') return null;
+      let { fish, target, jellies, items, shieldUntil, score, startedAt, lastJellySpawn, lastItemSpawn, nextJellyId, nextItemId } = s;
+      const elapsed = (now - startedAt) / 1000;
+      let nf = { ...fish };
+      let nt = target;
+      if (target) {
+        const dx = target.x - fish.x, dy = target.y - fish.y;
+        const dist = Math.hypot(dx, dy);
+        const step = 260 * dt;
+        if (dist <= step) { nf = { x: target.x, y: target.y }; nt = null; }
+        else { nf = { x: fish.x + dx / dist * step, y: fish.y + dy / dist * step }; }
+      }
+      const diffMult = this.props.difficulty === 'easy' ? 0.7 : this.props.difficulty === 'hard' ? 1.4 : 1;
+      const level = Math.min(5, 1 + Math.floor(score / 300));
+      const spawnInterval = Math.max(280, 900 - elapsed * 10 - (level - 1) * 60) / diffMult;
+
+      let newJellies = jellies.map(j => ({ ...j, y: j.y + j.speed * dt }));
+      newJellies = newJellies.filter(j => j.y < AREA_H + 40);
+      if (now - lastJellySpawn > spawnInterval) {
+        lastJellySpawn = now;
+        const speed = (120 + elapsed * 4 + (level - 1) * 15) * diffMult;
+        newJellies.push({ id: nextJellyId++, x: 24 + Math.random() * (AREA_W - 48), y: -30, speed });
+      }
+
+      const itemRate = this.props.itemDropRate ?? 0.5;
+      const itemInterval = 6000 / (0.3 + itemRate);
+      let newItems = items;
+      if (now - lastItemSpawn > itemInterval && items.length < 2) {
+        lastItemSpawn = now;
+        newItems = [...items, { id: nextItemId++, x: 34 + Math.random() * (AREA_W - 68), y: 120 + Math.random() * (AREA_H - 320) }];
+      }
+
+      let bonus = 0;
+      newItems = newItems.filter(it => {
+        const d = Math.hypot(it.x - nf.x, it.y - nf.y);
+        if (d < FISH_R + ITEM_R) { shieldUntil = now + 3000; return false; }
+        return true;
+      });
+
+      const shieldActive = now < shieldUntil;
+      let gameOver = false;
+      const survivors = [];
+      newJellies.forEach(j => {
+        const d = Math.hypot(j.x - nf.x, j.y - nf.y);
+        if (d < FISH_R + JELLY_R) {
+          if (shieldActive) bonus += 20;
+          else gameOver = true;
+        } else survivors.push(j);
+      });
+
+      const scoreAdd = dt * 10 + bonus;
+      if (gameOver) {
+        return { screen: 'gameover', gameOverScore: Math.round(score + scoreAdd), gameOverSeconds: Math.round(elapsed) };
+      }
+      return { fish: nf, target: nt, jellies: survivors, items: newItems, shieldUntil, score: score + scoreAdd, lastJellySpawn, lastItemSpawn, nextJellyId, nextItemId };
+    });
+  }
+
+  startGame = () => {
+    this._lastTime = undefined;
+    const now = performance.now();
+    this.setState({
+      screen: 'game', fish: { x: AREA_W / 2, y: AREA_H - 100 }, target: null,
+      jellies: [], items: [], shieldUntil: 0, score: 0, startedAt: now,
+      lastJellySpawn: now, lastItemSpawn: now, nextJellyId: 1, nextItemId: 1,
+    });
+  };
+
+  onAreaClick = (e) => {
+    if (this.state.screen !== 'game') return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.max(FISH_R, Math.min(AREA_W - FISH_R, e.clientX - rect.left));
+    const y = Math.max(FISH_R, Math.min(AREA_H - FISH_R, e.clientY - rect.top));
+    this.setState({ target: { x, y } });
+  };
+
+  goRanking = () => this.setState({ screen: 'ranking' });
+  goStart = () => this.setState({ screen: 'start' });
+  restart = () => this.startGame();
+  onNickChange = (e) => this.setState({ nickname: e.target.value.slice(0, 20) });
+  submitScore = () => {
+    const name = this.state.nickname.trim() || '익명';
+    const entry = { nickname: name, score: this.state.gameOverScore, isYou: true };
+    const list = [...this.state.rankings.map(r => ({ ...r, isYou: false })), entry]
+      .sort((a, b) => b.score - a.score).slice(0, 20);
+    this.setState({ rankings: list, screen: 'ranking' });
+  };
+
+  renderVals() {
+    const { screen, fish, jellies, items, score, shieldUntil, nickname, gameOverScore, gameOverSeconds, rankings } = this.state;
+    const now = performance.now();
+    const level = Math.min(5, 1 + Math.floor(score / 300));
+    const shieldActive = now < shieldUntil;
+    const accent = this.props.accentColor ?? '#ff8a65';
+
+    const unlocks = NAMES.map((name, i) => ({
+      name,
+      bg: i < level ? accent : 'rgba(255,255,255,0.15)',
+      opacity: i < level ? 1 : 0.5,
+    }));
+
+    const displayRankings = rankings.map((r, i) => ({
+      rank: i + 1,
+      nickname: r.nickname,
+      score: Math.floor(r.score),
+      rowBg: r.isYou ? 'oklch(90% 0.06 40)' : (i % 2 === 0 ? 'oklch(94% 0.005 240)' : 'transparent'),
+      badgeBg: i === 0 ? '#ffd166' : i === 1 ? '#cbd5e1' : i === 2 ? '#d8a479' : 'oklch(88% 0.01 240)',
+      badgeText: i < 3 ? '#3a2a10' : 'oklch(45% 0.02 240)',
+    }));
+
+    return {
+      isStart: screen === 'start', isGame: screen === 'game', isGameOver: screen === 'gameover', isRanking: screen === 'ranking',
+      accent, score: Math.floor(score), level,
+      fishLeft: (fish.x - 15) + 'px', fishTop: (fish.y - 11) + 'px',
+      shieldActive,
+      jellies: jellies.map(j => ({ id: j.id, left: (j.x - 15) + 'px', top: (j.y - 11) + 'px' })),
+      items: items.map(it => ({ id: it.id, left: (it.x - 16) + 'px', top: (it.y - 16) + 'px' })),
+      unlocks, nickname,
+      gameOverScore: Math.floor(gameOverScore), gameOverSeconds,
+      rankings: displayRankings,
+      onAreaClick: this.onAreaClick, startGame: this.startGame, goRanking: this.goRanking,
+      goStart: this.goStart, restart: this.restart, onNickChange: this.onNickChange, submitScore: this.submitScore,
+    };
+  }
+}
+</script>
+</body>
+</html>
