@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { GameEngine } from '../game/engine';
+import { ITEM_UNLOCK_ORDER, getLevelForScore } from '../game/leveling';
 import type { GameOverResult } from '../game/types';
 import styles from './GameScreen.module.css';
 
@@ -44,6 +45,8 @@ export function GameScreen({ onGameOver }: GameScreenProps) {
     engineRef.current?.setTarget(event.clientX - rect.left, event.clientY - rect.top);
   };
 
+  const level = getLevelForScore(score);
+
   return (
     <div className={styles.frame} ref={frameRef}>
       <canvas ref={canvasRef} className={styles.canvas} onPointerDown={handlePointerDown} />
@@ -52,6 +55,14 @@ export function GameScreen({ onGameOver }: GameScreenProps) {
           <p className={styles.scoreLabel}>SCORE</p>
           <p className={styles.scoreValue}>{score}</p>
         </div>
+      </div>
+      <div className={styles.itemRow}>
+        {ITEM_UNLOCK_ORDER.map((type, index) => (
+          <div
+            key={type}
+            className={index < level ? styles.itemSlotUnlocked : styles.itemSlot}
+          />
+        ))}
       </div>
     </div>
   );
