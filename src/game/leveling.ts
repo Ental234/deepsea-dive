@@ -1,8 +1,11 @@
 import type { ItemType } from './items';
 
-// 임시 스텁: 정식 난이도 곡선/해금 로직은 3단계(레벨업 & 난이도 곡선)에서 확정한다.
 export const SCORE_PER_LEVEL = 300;
 export const MAX_LEVEL = 5;
+
+// 원작의 "1만점/3만점 방향 추가" 2단계 구조를 축소된 5레벨 점수 스케일에 맞게 재조정
+export const LEFT_SPAWN_UNLOCK_LEVEL = 3;
+export const RIGHT_SPAWN_UNLOCK_LEVEL = 5;
 
 export const ITEM_UNLOCK_ORDER: ItemType[] = [
   'bubbleShield',
@@ -18,4 +21,11 @@ export function getLevelForScore(score: number): number {
 
 export function getUnlockedItemTypes(level: number): ItemType[] {
   return ITEM_UNLOCK_ORDER.slice(0, level);
+}
+
+export function getUnlockedSpawnEdges(level: number): Array<'top' | 'left' | 'right'> {
+  const edges: Array<'top' | 'left' | 'right'> = ['top'];
+  if (level >= LEFT_SPAWN_UNLOCK_LEVEL) edges.push('left');
+  if (level >= RIGHT_SPAWN_UNLOCK_LEVEL) edges.push('right');
+  return edges;
 }

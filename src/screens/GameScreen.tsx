@@ -55,6 +55,7 @@ export function GameScreen({ onGameOver }: GameScreenProps) {
           <p className={styles.scoreLabel}>SCORE</p>
           <p className={styles.scoreValue}>{score}</p>
         </div>
+        <div className={styles.levelPill}>LV {level}</div>
       </div>
       <div className={styles.itemRow}>
         {ITEM_UNLOCK_ORDER.map((type, index) => (

@@ -8,4 +8,8 @@ export const JELLY_SPAWN_INTERVAL_START_MS = 900;
 export const JELLY_SPAWN_INTERVAL_MIN_MS = 350;
 export const JELLY_SPAWN_RAMP_PER_SEC = 6; // ms shaved off spawn interval per second survived
 
+// 레벨업 시 시간 기반 램프 위에 추가로 얹히는 단계적 난이도 상승분 (레벨 5 이상은 더 붙지 않음, 시간 램프만 계속 증가)
+export const JELLY_LEVEL_SPEED_BONUS = 12; // px/s per level above 1
+export const JELLY_LEVEL_SPAWN_BONUS_MS = 60; // ms shaved off spawn interval per level above 1
+
 export const SCORE_PER_SECOND = 10;

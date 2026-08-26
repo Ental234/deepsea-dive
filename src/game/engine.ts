@@ -2,6 +2,8 @@ import {
   FISH_RADIUS,
   FISH_SPEED,
   JELLY_BASE_SPEED,
+  JELLY_LEVEL_SPAWN_BONUS_MS,
+  JELLY_LEVEL_SPEED_BONUS,
   JELLY_RADIUS,
   JELLY_SPAWN_INTERVAL_MIN_MS,
   JELLY_SPAWN_INTERVAL_START_MS,
@@ -30,7 +32,7 @@ import {
   WHALE_SHARK_SPEED,
   type ItemType,
 } from './items';
-import { getLevelForScore, getUnlockedItemTypes } from './leveling';
+import { getLevelForScore, getUnlockedItemTypes, getUnlockedSpawnEdges } from './leveling';
 import type {
   CoralBarrierState,
   GameOverResult,
@@ -191,19 +193,54 @@ export class GameEngine {
     this.msUntilNextSpawn -= dt * 1000;
     if (this.msUntilNextSpawn > 0) return;
 
+    const level = getLevelForScore(this.score);
+    const levelBonus = level - 1;
+
     const spawnInterval = Math.max(
       JELLY_SPAWN_INTERVAL_MIN_MS,
-      JELLY_SPAWN_INTERVAL_START_MS - this.elapsedSeconds * JELLY_SPAWN_RAMP_PER_SEC,
+      JELLY_SPAWN_INTERVAL_START_MS -
+        this.elapsedSeconds * JELLY_SPAWN_RAMP_PER_SEC -
+        levelBonus * JELLY_LEVEL_SPAWN_BONUS_MS,
     );
     this.msUntilNextSpawn = spawnInterval;
 
-    const speed = JELLY_BASE_SPEED + this.elapsedSeconds * JELLY_SPEED_RAMP_PER_SEC;
+    const speed =
+      JELLY_BASE_SPEED + this.elapsedSeconds * JELLY_SPEED_RAMP_PER_SEC + levelBonus * JELLY_LEVEL_SPEED_BONUS;
+
+    const edges = getUnlockedSpawnEdges(level);
+    const edge = edges[Math.floor(Math.random() * edges.length)];
+
+    let x: number;
+    let y: number;
+    let vx: number;
+    let vy: number;
+
+    switch (edge) {
+      case 'left':
+        x = -JELLY_RADIUS;
+        y = 90 + Math.random() * (this.height * 0.6 - 90);
+        vx = speed * 0.9;
+        vy = speed * 0.5;
+        break;
+      case 'right':
+        x = this.width + JELLY_RADIUS;
+        y = 90 + Math.random() * (this.height * 0.6 - 90);
+        vx = -speed * 0.9;
+        vy = speed * 0.5;
+        break;
+      default:
+        x = JELLY_RADIUS + Math.random() * (this.width - JELLY_RADIUS * 2);
+        y = -JELLY_RADIUS;
+        vx = 0;
+        vy = speed;
+    }
+
     this.jellies.push({
       id: this.nextJellyId++,
-      x: JELLY_RADIUS + Math.random() * (this.width - JELLY_RADIUS * 2),
-      y: -JELLY_RADIUS,
-      vx: 0,
-      vy: speed,
+      x,
+      y,
+      vx,
+      vy,
       swayPhase: Math.random() * Math.PI * 2,
     });
   }
@@ -211,10 +248,15 @@ export class GameEngine {
   private moveJellies(dt: number) {
     for (const jelly of this.jellies) {
       jelly.swayPhase += dt * 2;
-      jelly.x += Math.sin(jelly.swayPhase) * 12 * dt;
+      jelly.x += (Math.sin(jelly.swayPhase) * 12 + jelly.vx) * dt;
       jelly.y += jelly.vy * dt;
     }
-    this.jellies = this.jellies.filter((j) => j.y - JELLY_RADIUS < this.height);
+    this.jellies = this.jellies.filter(
+      (j) =>
+        j.y - JELLY_RADIUS < this.height &&
+        j.x > -JELLY_RADIUS * 4 &&
+        j.x < this.width + JELLY_RADIUS * 4,
+    );
   }
 
   private spawnItems(dt: number) {

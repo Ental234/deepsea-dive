@@ -36,6 +36,16 @@
   margin: 0;
 }
 
+.levelPill {
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: 14px;
+  color: white;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  padding: 6px 14px;
+}
+
 .canvas {
   position: absolute;
   inset: 0;
