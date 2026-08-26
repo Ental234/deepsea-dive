@@ -31,9 +31,11 @@ npm run dev
 
 ## 환경 변수
 
-Supabase 연동 시 `.env`에 아래 값을 설정 (커밋하지 않음):
+`.env`에 Supabase 프로젝트의 URL과 publishable key를 설정 (커밋하지 않음, `.env.example` 참고):
 
 ```
 VITE_SUPABASE_URL=
-VITE_SUPABASE_ANON_KEY=
+VITE_SUPABASE_PUBLISHABLE_KEY=
 ```
+
+Project Settings → API Keys에서 확인 가능. publishable key는 RLS를 전제로 브라우저에 노출해도 되는 키다 (secret key와 다름).

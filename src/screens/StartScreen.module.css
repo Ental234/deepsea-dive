@@ -76,6 +76,17 @@
   font-size: 18px;
 }
 
+.rankingButton {
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  border-radius: 999px;
+  padding: 14px;
+  background: transparent;
+  color: white;
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: 16px;
+}
+
 .hint {
   font-family: var(--font-body);
   font-size: 13px;

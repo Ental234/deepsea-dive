@@ -3,9 +3,10 @@ import styles from './StartScreen.module.css';
 
 interface StartScreenProps {
   onStart: () => void;
+  onViewRanking: () => void;
 }
 
-export function StartScreen({ onStart }: StartScreenProps) {
+export function StartScreen({ onStart, onViewRanking }: StartScreenProps) {
   return (
     <div className={shellStyles.shell}>
       <div className={shellStyles.frame}>
@@ -23,6 +24,9 @@ export function StartScreen({ onStart }: StartScreenProps) {
           <div className={styles.actions}>
             <button className={styles.startButton} onClick={onStart}>
               시작하기
+            </button>
+            <button className={styles.rankingButton} onClick={onViewRanking}>
+              랭킹 보기
             </button>
             <p className={styles.hint}>화면을 탭해서 물고기를 이동시켜요</p>
           </div>

@@ -1,0 +1,111 @@
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 20px;
+  min-height: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.backButton {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 20px;
+  color: white;
+  margin: 0;
+}
+
+.list {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border-radius: 20px;
+  padding: 8px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.rowEven {
+  background: oklch(94% 0.01 230);
+}
+
+.rowMine {
+  background: color-mix(in oklch, var(--color-accent) 20%, white);
+}
+
+.rank {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  color: white;
+  background: oklch(70% 0.01 240);
+  flex-shrink: 0;
+}
+
+.rankGold {
+  background: #ffd166;
+}
+
+.rankSilver {
+  background: #cbd5e1;
+}
+
+.rankBronze {
+  background: #d8a479;
+}
+
+.nickname {
+  flex: 1;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--color-text-dark);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.score {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--color-text-dark);
+}
+
+.message {
+  font-family: var(--font-body);
+  color: rgba(255, 255, 255, 0.85);
+  text-align: center;
+  padding: 40px 0;
+}
