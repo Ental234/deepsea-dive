@@ -41,16 +41,51 @@ export function GameScreen({ onGameOver }: GameScreenProps) {
     };
   }, [onGameOver]);
 
-  const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
+  const pointerPos = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
-    engineRef.current?.setTarget(event.clientX - rect.left, event.clientY - rect.top);
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  };
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    // 손가락/커서가 캔버스 밖으로 나가도 move 이벤트를 계속 받도록 캡처
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      /* 캡처 불가한 환경은 무시 */
+    }
+    const { x, y } = pointerPos(event);
+    engineRef.current?.pointerDown(x, y);
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (event.buttons === 0 && event.pointerType === 'mouse') return;
+    const { x, y } = pointerPos(event);
+    engineRef.current?.pointerMove(x, y);
+  };
+
+  const handlePointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    try {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    } catch {
+      /* noop */
+    }
+    engineRef.current?.pointerUp();
   };
 
   const level = getLevelForScore(score);
 
   return (
     <div className={styles.frame} ref={frameRef}>
-      <canvas ref={canvasRef} className={styles.canvas} onPointerDown={handlePointerDown} />
+      <canvas
+        ref={canvasRef}
+        className={styles.canvas}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+      />
       <div className={styles.hud}>
         <div>
           <p className={styles.scoreLabel}>SCORE</p>

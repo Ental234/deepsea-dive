@@ -1,5 +1,10 @@
 export const FISH_RADIUS = 14;
-export const FISH_SPEED = 260; // px/s, matches design handoff spec
+
+// 꾹 누르고 있으면 포인터 방향으로 가속, 떼면 관성으로 미끄러지다 멈춤
+export const FISH_ACCEL = 1700; // px/s^2, 홀드 중 포인터 쪽으로 당기는 힘
+export const FISH_DRAG = 4.2; // 1/s, 속도 감쇠(관성) 계수 — 항상 적용
+export const FISH_MAX_SPEED = 380; // px/s, 속도 상한
+export const FISH_STOP_DISTANCE = 5; // px, 포인터에 이보다 가까우면 가속 중단(정착)
 
 export const JELLY_RADIUS = 15;
 export const JELLY_BASE_SPEED = 90; // px/s at game start

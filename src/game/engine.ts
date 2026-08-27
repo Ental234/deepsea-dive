@@ -1,6 +1,9 @@
 import {
+  FISH_ACCEL,
+  FISH_DRAG,
+  FISH_MAX_SPEED,
   FISH_RADIUS,
-  FISH_SPEED,
+  FISH_STOP_DISTANCE,
   JELLY_BASE_SPEED,
   JELLY_LEVEL_SPAWN_BONUS_MS,
   JELLY_LEVEL_SPEED_BONUS,
@@ -71,7 +74,9 @@ export class GameEngine {
   private height = 0;
 
   private fish: Vec2 = { x: 0, y: 0 };
-  private target: Vec2 | null = null;
+  private fishVel: Vec2 = { x: 0, y: 0 };
+  private pointer: Vec2 | null = null; // 마지막 포인터 위치 (캔버스 좌표)
+  private holding = false; // 포인터를 꾹 누르고 있는 중인지
 
   private jellies: Jellyfish[] = [];
   private nextJellyId = 0;
@@ -155,8 +160,17 @@ export class GameEngine {
     }
   }
 
-  setTarget(x: number, y: number) {
-    this.target = { x, y };
+  pointerDown(x: number, y: number) {
+    this.pointer = { x, y };
+    this.holding = true;
+  }
+
+  pointerMove(x: number, y: number) {
+    this.pointer = { x, y };
+  }
+
+  pointerUp() {
+    this.holding = false;
   }
 
   start() {
@@ -213,28 +227,61 @@ export class GameEngine {
   }
 
   private moveFish(dt: number) {
-    // 이동이 없어도 기울기는 서서히 수평으로 복귀
-    this.fishTilt += (0 - this.fishTilt) * Math.min(1, dt * 6);
+    if (this.width === 0 || this.height === 0) return; // 리사이즈 전이면 대기
 
-    if (!this.target) return;
-    const dx = this.target.x - this.fish.x;
-    const dy = this.target.y - this.fish.y;
-    const distance = Math.hypot(dx, dy);
-    const step = FISH_SPEED * dt;
+    const vel = this.fishVel;
 
-    if (distance > 0.5) {
-      if (Math.abs(dx) > 4) this.fishFacing = dx >= 0 ? 1 : -1;
-      const targetTilt = Math.max(-0.5, Math.min(0.5, (dy / distance) * 0.6)) * this.fishFacing;
-      this.fishTilt += (targetTilt - this.fishTilt) * Math.min(1, dt * 6);
+    // 꾹 누르고 있는 동안: 포인터 방향으로 가속
+    if (this.holding && this.pointer) {
+      const dx = this.pointer.x - this.fish.x;
+      const dy = this.pointer.y - this.fish.y;
+      const distance = Math.hypot(dx, dy);
+      if (distance > FISH_STOP_DISTANCE) {
+        vel.x += (dx / distance) * FISH_ACCEL * dt;
+        vel.y += (dy / distance) * FISH_ACCEL * dt;
+      }
     }
 
-    if (distance <= step) {
-      this.fish = { ...this.target };
-      this.target = null;
-    } else {
-      this.fish.x += (dx / distance) * step;
-      this.fish.y += (dy / distance) * step;
+    // 관성: 속도를 매 프레임 감쇠 (프레임레이트 독립적)
+    const damp = Math.exp(-FISH_DRAG * dt);
+    vel.x *= damp;
+    vel.y *= damp;
+
+    // 속도 상한
+    const speed = Math.hypot(vel.x, vel.y);
+    if (speed > FISH_MAX_SPEED) {
+      vel.x = (vel.x / speed) * FISH_MAX_SPEED;
+      vel.y = (vel.y / speed) * FISH_MAX_SPEED;
     }
+
+    this.fish.x += vel.x * dt;
+    this.fish.y += vel.y * dt;
+
+    // 벽에 닿으면 그 축 속도를 죽여 미끄러짐 방지 (살짝 튕김)
+    const r = FISH_RADIUS;
+    if (this.fish.x < r) {
+      this.fish.x = r;
+      vel.x *= -0.25;
+    } else if (this.fish.x > this.width - r) {
+      this.fish.x = this.width - r;
+      vel.x *= -0.25;
+    }
+    if (this.fish.y < r) {
+      this.fish.y = r;
+      vel.y *= -0.25;
+    } else if (this.fish.y > this.height - r) {
+      this.fish.y = this.height - r;
+      vel.y *= -0.25;
+    }
+
+    // 바라보는 방향 / 기울기는 속도 벡터에서 유도
+    if (Math.abs(vel.x) > 8) this.fishFacing = vel.x >= 0 ? 1 : -1;
+    const movingSpeed = Math.hypot(vel.x, vel.y);
+    const targetTilt =
+      movingSpeed > 12
+        ? Math.max(-0.5, Math.min(0.5, (vel.y / movingSpeed) * 0.5)) * this.fishFacing
+        : 0;
+    this.fishTilt += (targetTilt - this.fishTilt) * Math.min(1, dt * 8);
   }
 
   private spawnJellies(dt: number) {
