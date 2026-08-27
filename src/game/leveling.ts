@@ -8,9 +8,9 @@ export const LEFT_SPAWN_UNLOCK_LEVEL = 3;
 export const RIGHT_SPAWN_UNLOCK_LEVEL = 5;
 
 export const ITEM_UNLOCK_ORDER: ItemType[] = [
-  'bubbleShield',
+  'whirlpool',
   'coralMissile',
-  'pufferMode',
+  'bubbleShield',
   'whaleShark',
   'coralBarrier',
 ];

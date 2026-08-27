@@ -33,11 +33,11 @@ export function ItemIcon({ type, size = 18 }: IconProps & { type: ItemType }) {
           <path d="M12 2l6 15-6-3.4L6 17z" />
         </svg>
       );
-    case 'pufferMode':
+    case 'whirlpool':
       return (
         <svg {...common}>
-          <circle cx="12" cy="12" r="4.5" fill="currentColor" stroke="none" />
-          <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" />
+          <path d="M20 12a8 8 0 1 1-4-6.93" />
+          <path d="M16.5 12a4.5 4.5 0 1 1-3-4.24" />
         </svg>
       );
     case 'whaleShark':

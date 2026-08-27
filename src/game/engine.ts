@@ -32,11 +32,12 @@ import {
   MISSILE_RADIUS,
   MISSILE_SPEED,
   MISSILE_VOLLEY_INTERVAL_MS,
-  PUFFER_DURATION_MS,
   SHIELD_BLINK_START_MS,
   SHIELD_DURATION_MS,
   WHALE_SHARK_RADIUS,
   WHALE_SHARK_SPEED,
+  WHIRLPOOL_DURATION_MS,
+  WHIRLPOOL_RADIUS,
   type ItemType,
 } from './items';
 import {
@@ -53,6 +54,7 @@ import type {
   Missile,
   Vec2,
   WhaleShark,
+  Whirlpool,
 } from './types';
 
 interface GameEngineCallbacks {
@@ -63,7 +65,7 @@ interface GameEngineCallbacks {
 const ITEM_COLORS: Record<ItemType, string> = {
   bubbleShield: '#8ad9f0',
   coralMissile: '#ff7043',
-  pufferMode: '#ffd166',
+  whirlpool: '#6cc6e6',
   whaleShark: '#8fb7d4',
   coralBarrier: '#4fb8af',
 };
@@ -72,7 +74,7 @@ const ITEM_COLORS: Record<ItemType, string> = {
 const ITEM_COLORS_DEEP: Record<ItemType, string> = {
   bubbleShield: '#4bb6d6',
   coralMissile: '#e0552c',
-  pufferMode: '#e9b23e',
+  whirlpool: '#2f86a6',
   whaleShark: '#5f87a8',
   coralBarrier: '#2f9088',
 };
@@ -100,6 +102,8 @@ export class GameEngine {
 
   private whaleSharks: WhaleShark[] = [];
   private nextWhaleSharkId = 0;
+
+  private whirlpools: Whirlpool[] = [];
 
   private coralBarrier: CoralBarrierState | null = null;
 
@@ -233,6 +237,7 @@ export class GameEngine {
     this.updateMissileBarrage(dt);
     this.updateMissiles(dt);
     this.updateWhaleSharks(dt);
+    this.updateWhirlpools(dt);
     this.updateCoralBarrier(dt);
 
     const gameOver = this.resolveFishJellyCollisions();
@@ -412,7 +417,7 @@ export class GameEngine {
     });
   }
 
-  /** 실드/가시복 종료 직전 점멸: 남은 시간이 짧을수록 빠르게 */
+  /** 거품 실드 종료 직전 점멸: 남은 시간이 짧을수록 빠르게 */
   private updateShieldBlink(dt: number) {
     const remainingMs = (this.invincibleUntil - this.elapsedSeconds) * 1000;
     if (remainingMs > 0 && remainingMs < SHIELD_BLINK_START_MS) {
@@ -438,8 +443,8 @@ export class GameEngine {
       case 'bubbleShield':
         this.invincibleUntil = this.elapsedSeconds + SHIELD_DURATION_MS / 1000;
         break;
-      case 'pufferMode':
-        this.invincibleUntil = this.elapsedSeconds + PUFFER_DURATION_MS / 1000;
+      case 'whirlpool':
+        this.spawnWhirlpool();
         break;
       case 'coralMissile':
         this.startMissileBarrage();
@@ -551,6 +556,44 @@ export class GameEngine {
       });
     }
     this.whaleSharks = this.whaleSharks.filter((shark) => shark.y > -WHALE_SHARK_RADIUS);
+  }
+
+  private spawnWhirlpool() {
+    this.whirlpools.push({
+      x: this.fish.x,
+      y: this.fish.y,
+      msLeft: WHIRLPOOL_DURATION_MS,
+      spinPhase: Math.random() * Math.PI * 2,
+    });
+  }
+
+  private updateWhirlpools(dt: number) {
+    for (const whirlpool of this.whirlpools) {
+      whirlpool.msLeft -= dt * 1000;
+      whirlpool.spinPhase += dt * 3.5;
+
+      // 주변 해파리를 중심으로 끌어당김
+      const pullRange = WHIRLPOOL_RADIUS * 2;
+      for (const jelly of this.jellies) {
+        const dx = whirlpool.x - jelly.x;
+        const dy = whirlpool.y - jelly.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 1 && dist < pullRange) {
+          const pull = 90 * dt * (1 - dist / pullRange);
+          jelly.x += (dx / dist) * pull;
+          jelly.y += (dy / dist) * pull;
+        }
+      }
+
+      // 닿은 해파리 제거 + 보너스
+      this.jellies = this.jellies.filter((jelly) => {
+        const hit =
+          Math.hypot(jelly.x - whirlpool.x, jelly.y - whirlpool.y) < WHIRLPOOL_RADIUS + JELLY_RADIUS;
+        if (hit) this.score += JELLY_KILL_BONUS_SCORE;
+        return !hit;
+      });
+    }
+    this.whirlpools = this.whirlpools.filter((whirlpool) => whirlpool.msLeft > 0);
   }
 
   private startCoralBarrier() {
@@ -683,6 +726,7 @@ export class GameEngine {
     }
 
     for (const item of this.items) this.drawItem(item);
+    for (const whirlpool of this.whirlpools) this.drawWhirlpool(whirlpool);
     for (const jelly of this.jellies) this.drawJellyfish(jelly);
     for (const shark of this.whaleSharks) this.drawWhaleShark(shark);
     for (const missile of this.missiles) this.drawMissile(missile);
@@ -954,17 +998,17 @@ export class GameEngine {
         ctx.fill();
         break;
       }
-      case 'pufferMode': {
+      case 'whirlpool': {
+        // 나선 글리프
         ctx.beginPath();
-        ctx.arc(0, 0, s * 0.52, 0, Math.PI * 2);
-        ctx.fill();
-        for (let i = 0; i < 8; i++) {
-          const a = (i / 8) * Math.PI * 2;
-          ctx.beginPath();
-          ctx.moveTo(Math.cos(a) * s * 0.5, Math.sin(a) * s * 0.5);
-          ctx.lineTo(Math.cos(a) * s * 1.05, Math.sin(a) * s * 1.05);
-          ctx.stroke();
+        for (let a = 0; a <= Math.PI * 3; a += 0.2) {
+          const rad = (a / (Math.PI * 3)) * s * 1.05;
+          const px = Math.cos(a) * rad;
+          const py = Math.sin(a) * rad;
+          if (a === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
         }
+        ctx.stroke();
         break;
       }
       case 'whaleShark': {
@@ -1106,6 +1150,60 @@ export class GameEngine {
     ctx.fillStyle = '#1c2b36';
     ctx.beginPath();
     ctx.arc(R * 0.7, -R * 0.05, R * 0.05, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  private drawWhirlpool(whirlpool: Whirlpool) {
+    const { ctx } = this;
+    const R = WHIRLPOOL_RADIUS;
+    const age = WHIRLPOOL_DURATION_MS - whirlpool.msLeft;
+    const grow = Math.min(1, age / 300); // 첫 0.3초 동안 커짐
+    const fade = Math.min(1, whirlpool.msLeft / 400); // 마지막 0.4초 동안 사라짐
+    const scale = 0.5 + 0.5 * grow;
+
+    ctx.save();
+    ctx.translate(whirlpool.x, whirlpool.y);
+    ctx.scale(scale, scale);
+    ctx.globalAlpha = grow * (0.4 + 0.6 * fade);
+
+    // 바깥 빛무리
+    const halo = ctx.createRadialGradient(0, 0, R * 0.12, 0, 0, R);
+    halo.addColorStop(0, 'rgba(214, 246, 250, 0.55)');
+    halo.addColorStop(0.6, 'rgba(108, 198, 230, 0.32)');
+    halo.addColorStop(1, 'rgba(47, 134, 166, 0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(0, 0, R, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 회전하는 나선 팔
+    ctx.rotate(whirlpool.spinPhase);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    for (let arm = 0; arm < 3; arm++) {
+      ctx.beginPath();
+      for (let t = 0; t <= 1.0001; t += 0.06) {
+        const ang = arm * ((Math.PI * 2) / 3) + t * Math.PI * 2.2;
+        const rad = R * (0.12 + 0.85 * t);
+        const px = Math.cos(ang) * rad;
+        const py = Math.sin(ang) * rad;
+        if (t === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    }
+
+    // 중심 눈(어두운 빨림)
+    ctx.rotate(-whirlpool.spinPhase * 2.2);
+    const eye = ctx.createRadialGradient(0, 0, 1, 0, 0, R * 0.3);
+    eye.addColorStop(0, 'rgba(8, 26, 34, 0.6)');
+    eye.addColorStop(1, 'rgba(8, 26, 34, 0)');
+    ctx.fillStyle = eye;
+    ctx.beginPath();
+    ctx.arc(0, 0, R * 0.3, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();

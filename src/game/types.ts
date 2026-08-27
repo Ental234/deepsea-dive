@@ -42,6 +42,13 @@ export interface WhaleShark {
   y: number;
 }
 
+export interface Whirlpool {
+  x: number;
+  y: number;
+  msLeft: number;
+  spinPhase: number;
+}
+
 export interface CoralBarrierOrb {
   x: number;
   y: number;
