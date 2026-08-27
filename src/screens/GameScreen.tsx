@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { GameEngine } from '../game/engine';
 import { ITEM_UNLOCK_ORDER, getLevelForScore } from '../game/leveling';
 import type { GameOverResult } from '../game/types';
+import { ItemIcon, LockIcon } from './GameIcons';
 import styles from './GameScreen.module.css';
 
 interface GameScreenProps {
@@ -58,12 +59,17 @@ export function GameScreen({ onGameOver }: GameScreenProps) {
         <div className={styles.levelPill}>LV {level}</div>
       </div>
       <div className={styles.itemRow}>
-        {ITEM_UNLOCK_ORDER.map((type, index) => (
-          <div
-            key={type}
-            className={index < level ? styles.itemSlotUnlocked : styles.itemSlot}
-          />
-        ))}
+        {ITEM_UNLOCK_ORDER.map((type, index) => {
+          const unlocked = index < level;
+          return (
+            <div
+              key={type}
+              className={unlocked ? styles.itemSlotUnlocked : styles.itemSlot}
+            >
+              {unlocked ? <ItemIcon type={type} /> : <LockIcon />}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

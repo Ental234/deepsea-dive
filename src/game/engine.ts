@@ -56,6 +56,15 @@ const ITEM_COLORS: Record<ItemType, string> = {
   coralBarrier: '#4fb8af',
 };
 
+// 아이템 본체 그라디언트의 바깥쪽(짙은) 색
+const ITEM_COLORS_DEEP: Record<ItemType, string> = {
+  bubbleShield: '#4bb6d6',
+  coralMissile: '#e0552c',
+  pufferMode: '#e9b23e',
+  whaleShark: '#5f87a8',
+  coralBarrier: '#2f9088',
+};
+
 export class GameEngine {
   private ctx: CanvasRenderingContext2D;
   private width = 0;
@@ -81,6 +90,10 @@ export class GameEngine {
   private coralBarrier: CoralBarrierState | null = null;
 
   private invincibleUntil = 0; // elapsedSeconds 기준 시각
+
+  private fishFacing = 1; // 1 = 오른쪽, -1 = 왼쪽
+  private fishTilt = 0; // 이동 방향에 따른 몸통 기울기 (rad)
+  private bubbles: { x: number; y: number; r: number; speed: number; drift: number }[] = [];
 
   private elapsedSeconds = 0;
   private score = 0;
@@ -114,6 +127,31 @@ export class GameEngine {
     } else {
       this.fish.x = Math.min(this.fish.x, width - FISH_RADIUS);
       this.fish.y = Math.min(this.fish.y, height - FISH_RADIUS);
+    }
+
+    if (this.bubbles.length === 0) this.initBubbles();
+  }
+
+  private initBubbles() {
+    const count = Math.round((this.width * this.height) / 26000);
+    this.bubbles = Array.from({ length: Math.max(10, Math.min(count, 32)) }, () => ({
+      x: Math.random() * this.width,
+      y: Math.random() * this.height,
+      r: 1 + Math.random() * 2.6,
+      speed: 12 + Math.random() * 26,
+      drift: Math.random() * Math.PI * 2,
+    }));
+  }
+
+  private updateBubbles(dt: number) {
+    for (const b of this.bubbles) {
+      b.drift += dt * 1.5;
+      b.y -= b.speed * dt;
+      b.x += Math.sin(b.drift) * 6 * dt;
+      if (b.y + b.r < 0) {
+        b.y = this.height + b.r;
+        b.x = Math.random() * this.width;
+      }
     }
   }
 
@@ -149,6 +187,7 @@ export class GameEngine {
     this.elapsedSeconds += dt;
     this.score += dt * SCORE_PER_SECOND;
 
+    this.updateBubbles(dt);
     this.moveFish(dt);
     this.spawnJellies(dt);
     this.moveJellies(dt);
@@ -174,11 +213,20 @@ export class GameEngine {
   }
 
   private moveFish(dt: number) {
+    // 이동이 없어도 기울기는 서서히 수평으로 복귀
+    this.fishTilt += (0 - this.fishTilt) * Math.min(1, dt * 6);
+
     if (!this.target) return;
     const dx = this.target.x - this.fish.x;
     const dy = this.target.y - this.fish.y;
     const distance = Math.hypot(dx, dy);
     const step = FISH_SPEED * dt;
+
+    if (distance > 0.5) {
+      if (Math.abs(dx) > 4) this.fishFacing = dx >= 0 ? 1 : -1;
+      const targetTilt = Math.max(-0.5, Math.min(0.5, (dy / distance) * 0.6)) * this.fishFacing;
+      this.fishTilt += (targetTilt - this.fishTilt) * Math.min(1, dt * 6);
+    }
 
     if (distance <= step) {
       this.fish = { ...this.target };
@@ -470,12 +518,48 @@ export class GameEngine {
     const { ctx, width, height } = this;
     ctx.clearRect(0, 0, width, height);
 
+    // 수면 → 심해 세로 그라디언트
     const bg = ctx.createLinearGradient(0, 0, 0, height);
-    bg.addColorStop(0, '#3f8fa8');
-    bg.addColorStop(0.55, '#215d78');
-    bg.addColorStop(1, '#12303f');
+    bg.addColorStop(0, '#4aa3bd');
+    bg.addColorStop(0.5, '#215d78');
+    bg.addColorStop(1, '#0f2b3a');
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, width, height);
+
+    // 위에서 스며드는 빛 기둥
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const beam = ctx.createLinearGradient(0, 0, 0, height * 0.7);
+    beam.addColorStop(0, 'rgba(188, 236, 246, 0.14)');
+    beam.addColorStop(1, 'rgba(188, 236, 246, 0)');
+    ctx.fillStyle = beam;
+    ctx.beginPath();
+    ctx.moveTo(width * 0.12, 0);
+    ctx.lineTo(width * 0.32, 0);
+    ctx.lineTo(width * 0.5, height * 0.72);
+    ctx.lineTo(width * 0.26, height * 0.72);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(width * 0.64, 0);
+    ctx.lineTo(width * 0.8, 0);
+    ctx.lineTo(width * 0.74, height * 0.6);
+    ctx.lineTo(width * 0.52, height * 0.6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // 떠오르는 기포
+    for (const b of this.bubbles) {
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.10)';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(b.x - b.r * 0.3, b.y - b.r * 0.3, b.r * 0.42, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+      ctx.fill();
+    }
 
     for (const item of this.items) this.drawItem(item);
     for (const jelly of this.jellies) this.drawJellyfish(jelly);
@@ -483,37 +567,113 @@ export class GameEngine {
     for (const missile of this.missiles) this.drawMissile(missile);
     if (this.coralBarrier) this.drawCoralBarrier(this.coralBarrier);
     this.drawFish(this.fish);
+
+    // 가장자리 비네트로 심해 심도 강조
+    const vignette = ctx.createRadialGradient(
+      width / 2,
+      height * 0.5,
+      Math.min(width, height) * 0.35,
+      width / 2,
+      height * 0.5,
+      Math.max(width, height) * 0.8,
+    );
+    vignette.addColorStop(0, 'rgba(4, 18, 26, 0)');
+    vignette.addColorStop(1, 'rgba(4, 18, 26, 0.45)');
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, width, height);
   }
 
   private drawFish(pos: Vec2) {
     const { ctx } = this;
+    const R = FISH_RADIUS;
+    const t = this.elapsedSeconds;
+    const bob = Math.sin(t * 3) * 1.5;
+
     ctx.save();
     ctx.translate(pos.x, pos.y);
 
-    if (this.elapsedSeconds < this.invincibleUntil) {
-      const pulse = 1 + Math.sin(this.elapsedSeconds * 8) * 0.15;
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.ellipse(0, 0, FISH_RADIUS * 1.7 * pulse, FISH_RADIUS * 1.4 * pulse, 0, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-
-    ctx.fillStyle = '#ff8a65';
+    // 바닥 그림자 (몸통 흔들림과 무관하게 고정)
     ctx.beginPath();
-    ctx.ellipse(0, 0, FISH_RADIUS, FISH_RADIUS * 0.8, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, R * 2.3, R * 1.15, R * 0.3, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.13)';
     ctx.fill();
 
+    ctx.translate(0, bob);
+    ctx.rotate(this.fishTilt);
+    ctx.scale(this.fishFacing, 1);
+
+    // 무적 상태 펄스 링
+    if (t < this.invincibleUntil) {
+      const pulse = 1 + Math.sin(t * 8) * 0.12;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(173, 232, 244, 0.9)';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, R * 1.8 * pulse, R * 1.5 * pulse, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.lineWidth = 6;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    const tailWave = Math.sin(t * 12) * 0.35;
+
+    // 꼬리지느러미
+    ctx.fillStyle = '#f4714a';
     ctx.beginPath();
-    ctx.moveTo(-FISH_RADIUS * 0.7, 0);
-    ctx.lineTo(-FISH_RADIUS * 1.6, -FISH_RADIUS * 0.6);
-    ctx.lineTo(-FISH_RADIUS * 1.6, FISH_RADIUS * 0.6);
+    ctx.moveTo(-R * 0.6, 0);
+    ctx.quadraticCurveTo(-R * 1.5, (-0.9 + tailWave) * R, -R * 1.9, (-0.5 + tailWave) * R);
+    ctx.quadraticCurveTo(-R * 1.4, 0, -R * 1.9, (0.5 - tailWave) * R);
+    ctx.quadraticCurveTo(-R * 1.5, (0.9 - tailWave) * R, -R * 0.6, 0);
+    ctx.fill();
+
+    // 등지느러미
+    ctx.beginPath();
+    ctx.moveTo(-R * 0.1, -R * 0.7);
+    ctx.quadraticCurveTo(R * 0.1, -R * 1.5, R * 0.6, -R * 0.7);
     ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = '#2b1a12';
+    // 몸통
+    const body = ctx.createLinearGradient(0, -R, 0, R);
+    body.addColorStop(0, '#ffa988');
+    body.addColorStop(0.55, '#ff8a65');
+    body.addColorStop(1, '#f4714a');
+    ctx.fillStyle = body;
     ctx.beginPath();
-    ctx.arc(FISH_RADIUS * 0.45, -FISH_RADIUS * 0.15, 1.6, 0, Math.PI * 2);
+    ctx.moveTo(R * 1.15, 0);
+    ctx.quadraticCurveTo(R * 0.5, -R * 0.95, -R * 0.5, -R * 0.7);
+    ctx.quadraticCurveTo(-R * 0.95, 0, -R * 0.5, R * 0.7);
+    ctx.quadraticCurveTo(R * 0.5, R * 0.95, R * 1.15, 0);
+    ctx.fill();
+
+    // 배 하이라이트
+    ctx.fillStyle = 'rgba(255, 236, 224, 0.5)';
+    ctx.beginPath();
+    ctx.ellipse(R * 0.1, R * 0.3, R * 0.7, R * 0.38, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 가슴지느러미
+    ctx.fillStyle = 'rgba(244, 113, 74, 0.9)';
+    ctx.beginPath();
+    ctx.moveTo(R * 0.15, R * 0.15);
+    ctx.quadraticCurveTo(-R * 0.1, R * 0.9, R * 0.55, R * 0.55);
+    ctx.closePath();
+    ctx.fill();
+
+    // 눈
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(R * 0.62, -R * 0.12, R * 0.24, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#26140c';
+    ctx.beginPath();
+    ctx.arc(R * 0.68, -R * 0.12, R * 0.12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.beginPath();
+    ctx.arc(R * 0.63, -R * 0.18, R * 0.05, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
@@ -521,51 +681,187 @@ export class GameEngine {
 
   private drawJellyfish(jelly: Jellyfish) {
     const { ctx } = this;
+    const R = JELLY_RADIUS;
     ctx.save();
     ctx.translate(jelly.x, jelly.y);
 
-    const bell = ctx.createLinearGradient(0, -JELLY_RADIUS, 0, JELLY_RADIUS * 0.3);
-    bell.addColorStop(0, '#f4a6d8');
-    bell.addColorStop(1, '#d1579f');
-    ctx.fillStyle = bell;
+    // 은은한 글로우
+    const glow = ctx.createRadialGradient(0, 0, R * 0.3, 0, 0, R * 1.9);
+    glow.addColorStop(0, 'rgba(244, 166, 216, 0.3)');
+    glow.addColorStop(1, 'rgba(244, 166, 216, 0)');
+    ctx.fillStyle = glow;
     ctx.beginPath();
-    ctx.ellipse(0, 0, JELLY_RADIUS, JELLY_RADIUS * 0.8, 0, Math.PI, 0);
+    ctx.arc(0, 0, R * 1.9, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.strokeStyle = 'rgba(209, 87, 159, 0.7)';
+    // 촉수
     ctx.lineWidth = 2;
-    for (let i = -1; i <= 1; i++) {
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 5; i++) {
+      const bx = (i - 2) * R * 0.38;
+      const phase = jelly.swayPhase + i * 0.7;
+      ctx.strokeStyle = i % 2 === 0 ? 'rgba(209, 87, 159, 0.75)' : 'rgba(244, 166, 216, 0.7)';
       ctx.beginPath();
-      ctx.moveTo(i * JELLY_RADIUS * 0.5, 0);
-      ctx.quadraticCurveTo(
-        i * JELLY_RADIUS * 0.5 + Math.sin(jelly.swayPhase + i) * 4,
-        JELLY_RADIUS * 1.2,
-        i * JELLY_RADIUS * 0.5,
-        JELLY_RADIUS * 1.8,
+      ctx.moveTo(bx, R * 0.35);
+      ctx.bezierCurveTo(
+        bx + Math.sin(phase) * 5,
+        R * 0.9,
+        bx - Math.sin(phase) * 6,
+        R * 1.5,
+        bx + Math.sin(phase * 1.3) * 4,
+        R * 2.1,
       );
       ctx.stroke();
     }
+
+    // 갓(bell) — 아래쪽에 물결 스커트
+    const bell = ctx.createLinearGradient(0, -R, 0, R * 0.5);
+    bell.addColorStop(0, '#ffc4e6');
+    bell.addColorStop(0.55, '#f3a0d4');
+    bell.addColorStop(1, '#d1579f');
+    ctx.fillStyle = bell;
+    ctx.beginPath();
+    ctx.moveTo(-R, R * 0.1);
+    ctx.quadraticCurveTo(-R, -R * 1.05, 0, -R * 1.05);
+    ctx.quadraticCurveTo(R, -R * 1.05, R, R * 0.1);
+    ctx.quadraticCurveTo(R * 0.6, R * 0.4, R * 0.5, R * 0.16);
+    ctx.quadraticCurveTo(R * 0.25, R * 0.42, 0, R * 0.18);
+    ctx.quadraticCurveTo(-R * 0.25, R * 0.42, -R * 0.5, R * 0.16);
+    ctx.quadraticCurveTo(-R * 0.6, R * 0.4, -R, R * 0.1);
+    ctx.closePath();
+    ctx.fill();
+
+    // 갓 하이라이트
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.beginPath();
+    ctx.ellipse(-R * 0.28, -R * 0.45, R * 0.26, R * 0.42, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 안쪽 라인
+    ctx.strokeStyle = 'rgba(160, 40, 110, 0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(-R * 0.7, R * 0.02);
+    ctx.quadraticCurveTo(0, -R * 0.3, R * 0.7, R * 0.02);
+    ctx.stroke();
 
     ctx.restore();
   }
 
   private drawItem(item: Item) {
     const { ctx } = this;
+    const R = ITEM_RADIUS;
+    const color = ITEM_COLORS[item.type];
+    const t = this.elapsedSeconds + item.id;
+    const pulse = 1 + Math.sin(t * 3) * 0.06;
+
     ctx.save();
     ctx.translate(item.x, item.y);
 
-    const glow = ctx.createRadialGradient(0, 0, 1, 0, 0, ITEM_RADIUS);
-    glow.addColorStop(0, 'white');
-    glow.addColorStop(1, ITEM_COLORS[item.type]);
+    // 외곽 글로우 (#RRGGBBAA)
+    const glow = ctx.createRadialGradient(0, 0, R * 0.4, 0, 0, R * 2.1);
+    glow.addColorStop(0, `${color}73`);
+    glow.addColorStop(1, `${color}00`);
     ctx.fillStyle = glow;
     ctx.beginPath();
-    ctx.arc(0, 0, ITEM_RADIUS, 0, Math.PI * 2);
+    ctx.arc(0, 0, R * 2.1, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+    // 본체
+    const body = ctx.createRadialGradient(-R * 0.35, -R * 0.35, R * 0.2, 0, 0, R * pulse);
+    body.addColorStop(0, '#ffffff');
+    body.addColorStop(0.5, color);
+    body.addColorStop(1, ITEM_COLORS_DEEP[item.type]);
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.arc(0, 0, R * pulse, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
     ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, R * pulse, 0, Math.PI * 2);
     ctx.stroke();
 
+    // 상단 하이라이트
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.beginPath();
+    ctx.ellipse(-R * 0.3, -R * 0.4, R * 0.34, R * 0.2, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    this.drawItemGlyph(item.type);
+
+    ctx.restore();
+  }
+
+  private drawItemGlyph(type: ItemType) {
+    const { ctx } = this;
+    const s = ITEM_RADIUS * 0.62;
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+
+    switch (type) {
+      case 'bubbleShield': {
+        ctx.beginPath();
+        ctx.moveTo(0, -s);
+        ctx.lineTo(s * 0.82, -s * 0.5);
+        ctx.lineTo(s * 0.82, s * 0.25);
+        ctx.quadraticCurveTo(s * 0.82, s, 0, s * 1.05);
+        ctx.quadraticCurveTo(-s * 0.82, s, -s * 0.82, s * 0.25);
+        ctx.lineTo(-s * 0.82, -s * 0.5);
+        ctx.closePath();
+        ctx.stroke();
+        break;
+      }
+      case 'coralMissile': {
+        ctx.beginPath();
+        ctx.moveTo(0, -s * 1.1);
+        ctx.lineTo(s * 0.7, s * 0.5);
+        ctx.lineTo(0, s * 0.1);
+        ctx.lineTo(-s * 0.7, s * 0.5);
+        ctx.closePath();
+        ctx.fill();
+        break;
+      }
+      case 'pufferMode': {
+        ctx.beginPath();
+        ctx.arc(0, 0, s * 0.52, 0, Math.PI * 2);
+        ctx.fill();
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a) * s * 0.5, Math.sin(a) * s * 0.5);
+          ctx.lineTo(Math.cos(a) * s * 1.05, Math.sin(a) * s * 1.05);
+          ctx.stroke();
+        }
+        break;
+      }
+      case 'whaleShark': {
+        ctx.beginPath();
+        ctx.ellipse(-s * 0.1, 0, s * 0.85, s * 0.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.8, 0);
+        ctx.lineTo(-s * 1.2, -s * 0.5);
+        ctx.lineTo(-s * 1.2, s * 0.5);
+        ctx.closePath();
+        ctx.fill();
+        break;
+      }
+      case 'coralBarrier': {
+        for (let i = 0; i < 4; i++) {
+          const a = (i / 4) * Math.PI * 2 + this.elapsedSeconds * 2;
+          ctx.beginPath();
+          ctx.arc(Math.cos(a) * s * 0.72, Math.sin(a) * s * 0.72, s * 0.26, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        break;
+      }
+    }
     ctx.restore();
   }
 
@@ -575,12 +871,31 @@ export class GameEngine {
     ctx.translate(missile.x, missile.y);
     ctx.rotate(Math.atan2(missile.vy, missile.vx));
 
+    // 꼬리 트레일
+    const trail = ctx.createLinearGradient(-MISSILE_RADIUS * 4.5, 0, 0, 0);
+    trail.addColorStop(0, 'rgba(255, 209, 102, 0)');
+    trail.addColorStop(1, 'rgba(255, 160, 90, 0.7)');
+    ctx.fillStyle = trail;
+    ctx.beginPath();
+    ctx.moveTo(-MISSILE_RADIUS * 4.5, -MISSILE_RADIUS * 0.5);
+    ctx.lineTo(0, -MISSILE_RADIUS * 0.5);
+    ctx.lineTo(0, MISSILE_RADIUS * 0.5);
+    ctx.lineTo(-MISSILE_RADIUS * 4.5, MISSILE_RADIUS * 0.5);
+    ctx.closePath();
+    ctx.fill();
+
+    // 산호가시 본체
     ctx.fillStyle = '#ff7043';
     ctx.beginPath();
-    ctx.moveTo(MISSILE_RADIUS * 1.6, 0);
-    ctx.lineTo(-MISSILE_RADIUS, -MISSILE_RADIUS);
-    ctx.lineTo(-MISSILE_RADIUS, MISSILE_RADIUS);
-    ctx.closePath();
+    ctx.moveTo(MISSILE_RADIUS * 1.9, 0);
+    ctx.quadraticCurveTo(0, -MISSILE_RADIUS * 1.1, -MISSILE_RADIUS, -MISSILE_RADIUS * 0.7);
+    ctx.quadraticCurveTo(-MISSILE_RADIUS * 0.4, 0, -MISSILE_RADIUS, MISSILE_RADIUS * 0.7);
+    ctx.quadraticCurveTo(0, MISSILE_RADIUS * 1.1, MISSILE_RADIUS * 1.9, 0);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(255, 224, 200, 0.85)';
+    ctx.beginPath();
+    ctx.arc(MISSILE_RADIUS * 0.5, -MISSILE_RADIUS * 0.15, MISSILE_RADIUS * 0.3, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
@@ -588,25 +903,82 @@ export class GameEngine {
 
   private drawWhaleShark(shark: WhaleShark) {
     const { ctx } = this;
+    const R = WHALE_SHARK_RADIUS;
+    const t = this.elapsedSeconds;
     ctx.save();
     ctx.translate(shark.x, shark.y);
 
-    ctx.fillStyle = '#5f87a8';
+    // 후광
+    const halo = ctx.createRadialGradient(0, 0, R * 0.6, 0, 0, R * 1.5);
+    halo.addColorStop(0, 'rgba(143, 183, 212, 0.22)');
+    halo.addColorStop(1, 'rgba(143, 183, 212, 0)');
+    ctx.fillStyle = halo;
     ctx.beginPath();
-    ctx.ellipse(0, 0, WHALE_SHARK_RADIUS, WHALE_SHARK_RADIUS * 0.55, 0, 0, Math.PI * 2);
+    ctx.arc(0, 0, R * 1.5, 0, Math.PI * 2);
     ctx.fill();
 
+    ctx.rotate(-Math.PI / 2); // 위로 헤엄치는 방향
+    const tailWave = Math.sin(t * 6) * 0.25;
+
+    // 꼬리
+    ctx.fillStyle = '#4f7797';
+    ctx.beginPath();
+    ctx.moveTo(-R * 0.85, 0);
+    ctx.quadraticCurveTo(-R * 1.25, (-0.5 + tailWave) * R, -R * 1.5, (-0.15 + tailWave) * R);
+    ctx.quadraticCurveTo(-R * 1.15, 0, -R * 1.5, (0.15 - tailWave) * R);
+    ctx.quadraticCurveTo(-R * 1.25, (0.5 - tailWave) * R, -R * 0.85, 0);
+    ctx.fill();
+
+    // 등지느러미
+    ctx.beginPath();
+    ctx.moveTo(-R * 0.05, -R * 0.5);
+    ctx.quadraticCurveTo(R * 0.1, -R * 0.95, R * 0.45, -R * 0.5);
+    ctx.closePath();
+    ctx.fill();
+
+    // 몸통
+    const body = ctx.createLinearGradient(0, -R * 0.6, 0, R * 0.6);
+    body.addColorStop(0, '#6f97b8');
+    body.addColorStop(1, '#4f7797');
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, R, R * 0.55, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 배
     ctx.fillStyle = '#e8f3fa';
     ctx.beginPath();
-    ctx.ellipse(0, WHALE_SHARK_RADIUS * 0.2, WHALE_SHARK_RADIUS * 0.8, WHALE_SHARK_RADIUS * 0.28, 0, 0, Math.PI * 2);
+    ctx.ellipse(R * 0.05, R * 0.22, R * 0.78, R * 0.26, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = '#5f87a8';
+    // 옆지느러미
+    ctx.fillStyle = '#4f7797';
     ctx.beginPath();
-    ctx.moveTo(-WHALE_SHARK_RADIUS, 0);
-    ctx.lineTo(-WHALE_SHARK_RADIUS * 1.4, -WHALE_SHARK_RADIUS * 0.4);
-    ctx.lineTo(-WHALE_SHARK_RADIUS * 1.4, WHALE_SHARK_RADIUS * 0.4);
+    ctx.moveTo(R * 0.15, R * 0.3);
+    ctx.quadraticCurveTo(R * 0.1, R * 0.8, R * 0.6, R * 0.55);
     ctx.closePath();
+    ctx.fill();
+
+    // 점무늬
+    ctx.fillStyle = 'rgba(232, 243, 250, 0.75)';
+    const spots: [number, number][] = [
+      [-R * 0.4, -R * 0.2],
+      [-R * 0.15, -R * 0.32],
+      [R * 0.1, -R * 0.15],
+      [-R * 0.25, R * 0.05],
+      [R * 0.35, -R * 0.28],
+      [-R * 0.55, R * 0.1],
+    ];
+    for (const [sx, sy] of spots) {
+      ctx.beginPath();
+      ctx.arc(sx, sy, R * 0.06, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 눈
+    ctx.fillStyle = '#1c2b36';
+    ctx.beginPath();
+    ctx.arc(R * 0.7, -R * 0.05, R * 0.05, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
@@ -614,13 +986,34 @@ export class GameEngine {
 
   private drawCoralBarrier(barrier: CoralBarrierState) {
     const { ctx } = this;
+    const R = CORAL_BARRIER_ORB_RADIUS;
     for (const orb of barrier.orbs) {
       ctx.save();
       ctx.translate(orb.x, orb.y);
-      ctx.fillStyle = ITEM_COLORS.coralBarrier;
+
+      const glow = ctx.createRadialGradient(0, 0, R * 0.3, 0, 0, R * 2);
+      glow.addColorStop(0, 'rgba(79, 184, 175, 0.5)');
+      glow.addColorStop(1, 'rgba(79, 184, 175, 0)');
+      ctx.fillStyle = glow;
       ctx.beginPath();
-      ctx.arc(0, 0, CORAL_BARRIER_ORB_RADIUS, 0, Math.PI * 2);
+      ctx.arc(0, 0, R * 2, 0, Math.PI * 2);
       ctx.fill();
+
+      const core = ctx.createRadialGradient(-R * 0.3, -R * 0.3, R * 0.2, 0, 0, R);
+      core.addColorStop(0, '#d7f5f1');
+      core.addColorStop(0.5, '#4fb8af');
+      core.addColorStop(1, '#2f9088');
+      ctx.fillStyle = core;
+      ctx.beginPath();
+      ctx.arc(0, 0, R, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, R, 0, Math.PI * 2);
+      ctx.stroke();
+
       ctx.restore();
     }
   }

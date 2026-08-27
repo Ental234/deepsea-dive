@@ -1,3 +1,4 @@
+import { FishMascot } from './GameIcons';
 import shellStyles from './Screen.module.css';
 import styles from './StartScreen.module.css';
 
@@ -17,8 +18,7 @@ export function StartScreen({ onStart, onViewRanking }: StartScreenProps) {
           </div>
 
           <div className={styles.fish}>
-            <div className={styles.fishTail} />
-            <div className={styles.fishBody} />
+            <FishMascot width={148} />
           </div>
 
           <div className={styles.actions}>

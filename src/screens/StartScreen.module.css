@@ -25,37 +25,18 @@
 
 .fish {
   align-self: center;
-  width: 72px;
-  height: 56px;
-  position: relative;
+  display: flex;
+  filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.22));
   animation: float 3.2s ease-in-out infinite;
-}
-
-.fishBody {
-  position: absolute;
-  inset: 0;
-  left: 18px;
-  background: var(--color-accent);
-  border-radius: 60% 40% 50% 50% / 60% 60% 40% 40%;
-}
-
-.fishTail {
-  position: absolute;
-  left: 0;
-  top: 12px;
-  width: 22px;
-  height: 32px;
-  background: var(--color-accent);
-  clip-path: polygon(100% 0%, 0% 50%, 100% 100%);
 }
 
 @keyframes float {
   0%,
   100% {
-    transform: translateY(0);
+    transform: translateY(0) rotate(-2deg);
   }
   50% {
-    transform: translateY(-10px);
+    transform: translateY(-12px) rotate(2deg);
   }
 }
 
