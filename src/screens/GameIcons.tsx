@@ -47,13 +47,14 @@ export function ItemIcon({ type, size = 18 }: IconProps & { type: ItemType }) {
           <path d="M4 12L1 8v8z" />
         </svg>
       );
-    case 'coralBarrier':
+    case 'shockwave':
       return (
-        <svg {...common} fill="currentColor" stroke="none">
-          <circle cx="12" cy="4.5" r="2.2" />
-          <circle cx="19.5" cy="12" r="2.2" />
-          <circle cx="12" cy="19.5" r="2.2" />
-          <circle cx="4.5" cy="12" r="2.2" />
+        <svg {...common}>
+          <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" />
+          <path d="M7.8 16.2a6 6 0 0 1 0-8.4" />
+          <path d="M16.2 7.8a6 6 0 0 1 0 8.4" />
+          <path d="M4.8 19.2a10 10 0 0 1 0-14.4" />
+          <path d="M19.2 4.8a10 10 0 0 1 0 14.4" />
         </svg>
       );
   }

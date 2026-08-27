@@ -12,7 +12,7 @@ export const ITEM_UNLOCK_ORDER: ItemType[] = [
   'coralMissile',
   'bubbleShield',
   'whaleShark',
-  'coralBarrier',
+  'shockwave',
 ];
 
 export function getLevelForScore(score: number): number {

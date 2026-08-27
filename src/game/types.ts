@@ -49,16 +49,9 @@ export interface Whirlpool {
   spinPhase: number;
 }
 
-export interface CoralBarrierOrb {
+export interface Shockwave {
   x: number;
   y: number;
-  angle: number;
-  vx: number;
-  vy: number;
-}
-
-export interface CoralBarrierState {
-  phase: 'holding' | 'firing';
-  holdMsLeft: number;
-  orbs: CoralBarrierOrb[];
+  radius: number;
+  maxRadius: number;
 }

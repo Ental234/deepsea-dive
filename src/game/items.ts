@@ -1,4 +1,4 @@
-export type ItemType = 'bubbleShield' | 'coralMissile' | 'whirlpool' | 'whaleShark' | 'coralBarrier';
+export type ItemType = 'bubbleShield' | 'coralMissile' | 'whirlpool' | 'whaleShark' | 'shockwave';
 
 export const ITEM_RADIUS = 16;
 export const ITEM_MAX_CONCURRENT = 3;
@@ -28,9 +28,6 @@ export const MISSILE_VOLLEY_INTERVAL_MS = 1000; // volley 사이 간격
 export const WHALE_SHARK_SPEED = 70;
 export const WHALE_SHARK_RADIUS = 55;
 
-// 산호 배리어 (Lv5)
-export const CORAL_BARRIER_ORB_COUNT = 4;
-export const CORAL_BARRIER_ORBIT_RADIUS = 40;
-export const CORAL_BARRIER_HOLD_MS = 1200;
-export const CORAL_BARRIER_FIRE_SPEED = 260;
-export const CORAL_BARRIER_ORB_RADIUS = 10;
+// 쇼크웨이브 (Lv5) — 픽업 지점에서 충격파 링이 화면 전체로 퍼지며 닿는 해파리를 전부 제거
+export const SHOCKWAVE_DURATION_MS = 550; // 링이 최대 반경까지 퍼지는 시간
+export const SHOCKWAVE_THICKNESS = 46; // 파면 링의 시각적 두께

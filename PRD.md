@@ -83,11 +83,11 @@
 | 산호가시 유도탄 | 나뭇잎 유도탄 | 2 | 픽업 후 지속 시간(5초) 동안 1초마다 소량(2발)씩 연사. 각 가시는 랜덤 해파리를 추적, 명중 시 제거 |
 | 거품 실드 | 꽃잎 폭탄 | 3 | 즉시 발동, 일정 시간(3초) 무적. 종료 직전에는 방어막 링이 점멸하며(남은 시간이 짧을수록 빠르게) 곧 풀림을 알림 |
 | 고래상어 라이드 | 벌 미사일 | 4 | 느리게 전진하는 거대 고래상어 소환, 닿는 해파리 모두 제거 (안전지대 역할) |
-| 산호 배리어 | 코스모스 | 5 | 물고기 주변에 보호막 여러 개 생성 → 일정 시간 후 전방 발사되며 화면 정리 |
+| 쇼크웨이브 | 코스모스(변형) | 5 | 픽업 지점에서 충격파 링이 순식간에(약 0.55초) 화면 전체로 퍼지며, 링이 지나간 모든 해파리를 제거. 위기 탈출용 한 방 궁극기 |
 
 - 아이템은 화면에 최대 2~3개까지 동시 등장, 랜덤 스폰
 - 개별 강화(레벨/지속시간 업그레이드)는 MVP에서 제외 — 해금되면 고정 스펙으로 동작
-- 밸런스 수치는 `src/game/items.ts` 로 조정 (`SHIELD_BLINK_START_MS`, `MISSILE_COUNT`, `MISSILE_VOLLEY_INTERVAL_MS`, `MISSILE_BARRAGE_DURATION_MS`, `WHIRLPOOL_DURATION_MS`, `WHIRLPOOL_RADIUS` 등)
+- 밸런스 수치는 `src/game/items.ts` 로 조정 (`SHIELD_BLINK_START_MS`, `MISSILE_COUNT`, `MISSILE_VOLLEY_INTERVAL_MS`, `MISSILE_BARRAGE_DURATION_MS`, `WHIRLPOOL_DURATION_MS`, `WHIRLPOOL_RADIUS`, `SHOCKWAVE_DURATION_MS` 등)
 - **개발용 토글**: `src/game/constants.ts` 의 `TEST_SPAWN_ALL_ITEMS` — true 면 시작 즉시 5종 아이템이 하나씩 배치되고 레벨 해금과 무관하게 전부 스폰됨. 배포 전 false 로 되돌릴 것
 
 ### 6.5 레벨업 시스템

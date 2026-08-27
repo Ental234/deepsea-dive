@@ -16,11 +16,6 @@ import {
   TEST_SPAWN_ALL_ITEMS,
 } from './constants';
 import {
-  CORAL_BARRIER_FIRE_SPEED,
-  CORAL_BARRIER_HOLD_MS,
-  CORAL_BARRIER_ORBIT_RADIUS,
-  CORAL_BARRIER_ORB_COUNT,
-  CORAL_BARRIER_ORB_RADIUS,
   ITEM_MAX_CONCURRENT,
   ITEM_RADIUS,
   ITEM_SPAWN_INTERVAL_MAX_MS,
@@ -34,6 +29,8 @@ import {
   MISSILE_VOLLEY_INTERVAL_MS,
   SHIELD_BLINK_START_MS,
   SHIELD_DURATION_MS,
+  SHOCKWAVE_DURATION_MS,
+  SHOCKWAVE_THICKNESS,
   WHALE_SHARK_RADIUS,
   WHALE_SHARK_SPEED,
   WHIRLPOOL_DURATION_MS,
@@ -47,11 +44,11 @@ import {
   getUnlockedSpawnEdges,
 } from './leveling';
 import type {
-  CoralBarrierState,
   GameOverResult,
   Item,
   Jellyfish,
   Missile,
+  Shockwave,
   Vec2,
   WhaleShark,
   Whirlpool,
@@ -67,7 +64,7 @@ const ITEM_COLORS: Record<ItemType, string> = {
   coralMissile: '#ff7043',
   whirlpool: '#6cc6e6',
   whaleShark: '#8fb7d4',
-  coralBarrier: '#4fb8af',
+  shockwave: '#ffdd8f',
 };
 
 // 아이템 본체 그라디언트의 바깥쪽(짙은) 색
@@ -76,7 +73,7 @@ const ITEM_COLORS_DEEP: Record<ItemType, string> = {
   coralMissile: '#e0552c',
   whirlpool: '#2f86a6',
   whaleShark: '#5f87a8',
-  coralBarrier: '#2f9088',
+  shockwave: '#e9a63a',
 };
 
 export class GameEngine {
@@ -105,7 +102,7 @@ export class GameEngine {
 
   private whirlpools: Whirlpool[] = [];
 
-  private coralBarrier: CoralBarrierState | null = null;
+  private shockwave: Shockwave | null = null;
 
   // 산호가시 유도탄: 픽업 시 일정 시간 동안 주기적으로 소량 연사
   private missileBarrage: { msLeft: number; msUntilNextVolley: number } | null = null;
@@ -238,7 +235,7 @@ export class GameEngine {
     this.updateMissiles(dt);
     this.updateWhaleSharks(dt);
     this.updateWhirlpools(dt);
-    this.updateCoralBarrier(dt);
+    this.updateShockwave(dt);
 
     const gameOver = this.resolveFishJellyCollisions();
 
@@ -452,8 +449,8 @@ export class GameEngine {
       case 'whaleShark':
         this.spawnWhaleShark();
         break;
-      case 'coralBarrier':
-        this.startCoralBarrier();
+      case 'shockwave':
+        this.triggerShockwave();
         break;
     }
   }
@@ -596,63 +593,26 @@ export class GameEngine {
     this.whirlpools = this.whirlpools.filter((whirlpool) => whirlpool.msLeft > 0);
   }
 
-  private startCoralBarrier() {
-    if (this.coralBarrier?.phase === 'holding') {
-      this.coralBarrier.holdMsLeft = CORAL_BARRIER_HOLD_MS;
-      return;
-    }
-    this.coralBarrier = {
-      phase: 'holding',
-      holdMsLeft: CORAL_BARRIER_HOLD_MS,
-      orbs: Array.from({ length: CORAL_BARRIER_ORB_COUNT }, (_, i) => ({
-        angle: (i / CORAL_BARRIER_ORB_COUNT) * Math.PI * 2,
-        x: this.fish.x,
-        y: this.fish.y,
-        vx: 0,
-        vy: 0,
-      })),
-    };
+  private triggerShockwave() {
+    // 화면 어느 구석까지도 닿도록 대각선 길이를 최대 반경으로
+    const maxRadius = Math.hypot(this.width, this.height) + 40;
+    this.shockwave = { x: this.fish.x, y: this.fish.y, radius: 0, maxRadius };
   }
 
-  private updateCoralBarrier(dt: number) {
-    const barrier = this.coralBarrier;
-    if (!barrier) return;
+  private updateShockwave(dt: number) {
+    const wave = this.shockwave;
+    if (!wave) return;
 
-    if (barrier.phase === 'holding') {
-      for (const orb of barrier.orbs) {
-        orb.angle += dt * 3;
-        orb.x = this.fish.x + Math.cos(orb.angle) * CORAL_BARRIER_ORBIT_RADIUS;
-        orb.y = this.fish.y + Math.sin(orb.angle) * CORAL_BARRIER_ORBIT_RADIUS;
-      }
-      barrier.holdMsLeft -= dt * 1000;
-      if (barrier.holdMsLeft <= 0) {
-        barrier.phase = 'firing';
-        for (const orb of barrier.orbs) {
-          orb.vx = Math.cos(orb.angle) * CORAL_BARRIER_FIRE_SPEED;
-          orb.vy = Math.sin(orb.angle) * CORAL_BARRIER_FIRE_SPEED;
-        }
-      }
-      return;
-    }
+    wave.radius += (wave.maxRadius / (SHOCKWAVE_DURATION_MS / 1000)) * dt;
 
-    for (const orb of barrier.orbs) {
-      orb.x += orb.vx * dt;
-      orb.y += orb.vy * dt;
-    }
+    // 파면이 지나간 영역(반경 안쪽) 해파리 전부 제거
+    this.jellies = this.jellies.filter((jelly) => {
+      const hit = Math.hypot(jelly.x - wave.x, jelly.y - wave.y) <= wave.radius;
+      if (hit) this.score += JELLY_KILL_BONUS_SCORE;
+      return !hit;
+    });
 
-    for (const orb of barrier.orbs) {
-      this.jellies = this.jellies.filter((jelly) => {
-        const hit =
-          Math.hypot(jelly.x - orb.x, jelly.y - orb.y) < CORAL_BARRIER_ORB_RADIUS + JELLY_RADIUS;
-        if (hit) this.score += JELLY_KILL_BONUS_SCORE;
-        return !hit;
-      });
-    }
-
-    barrier.orbs = barrier.orbs.filter(
-      (orb) => orb.x > -50 && orb.x < this.width + 50 && orb.y > -50 && orb.y < this.height + 50,
-    );
-    if (barrier.orbs.length === 0) this.coralBarrier = null;
+    if (wave.radius >= wave.maxRadius) this.shockwave = null;
   }
 
   private resolveFishJellyCollisions(): boolean {
@@ -730,7 +690,7 @@ export class GameEngine {
     for (const jelly of this.jellies) this.drawJellyfish(jelly);
     for (const shark of this.whaleSharks) this.drawWhaleShark(shark);
     for (const missile of this.missiles) this.drawMissile(missile);
-    if (this.coralBarrier) this.drawCoralBarrier(this.coralBarrier);
+    if (this.shockwave) this.drawShockwave(this.shockwave);
     this.drawFish(this.fish);
 
     // 가장자리 비네트로 심해 심도 강조
@@ -1023,12 +983,15 @@ export class GameEngine {
         ctx.fill();
         break;
       }
-      case 'coralBarrier': {
-        for (let i = 0; i < 4; i++) {
-          const a = (i / 4) * Math.PI * 2 + this.elapsedSeconds * 2;
+      case 'shockwave': {
+        // 중심에서 퍼지는 동심 호
+        ctx.beginPath();
+        ctx.arc(0, 0, s * 0.16, 0, Math.PI * 2);
+        ctx.fill();
+        for (let i = 1; i <= 3; i++) {
           ctx.beginPath();
-          ctx.arc(Math.cos(a) * s * 0.72, Math.sin(a) * s * 0.72, s * 0.26, 0, Math.PI * 2);
-          ctx.fill();
+          ctx.arc(0, 0, s * 0.34 * i, -Math.PI * 0.72, Math.PI * 0.22);
+          ctx.stroke();
         }
         break;
       }
@@ -1209,37 +1172,46 @@ export class GameEngine {
     ctx.restore();
   }
 
-  private drawCoralBarrier(barrier: CoralBarrierState) {
+  private drawShockwave(wave: Shockwave) {
     const { ctx } = this;
-    const R = CORAL_BARRIER_ORB_RADIUS;
-    for (const orb of barrier.orbs) {
-      ctx.save();
-      ctx.translate(orb.x, orb.y);
+    const p = Math.min(1, wave.radius / wave.maxRadius); // 0 → 1
+    const alpha = Math.max(0, 1 - p); // 퍼질수록 옅어짐
+    const width = SHOCKWAVE_THICKNESS * (0.35 + 0.65 * (1 - p));
 
-      const glow = ctx.createRadialGradient(0, 0, R * 0.3, 0, 0, R * 2);
-      glow.addColorStop(0, 'rgba(79, 184, 175, 0.5)');
-      glow.addColorStop(1, 'rgba(79, 184, 175, 0)');
-      ctx.fillStyle = glow;
-      ctx.beginPath();
-      ctx.arc(0, 0, R * 2, 0, Math.PI * 2);
-      ctx.fill();
+    ctx.save();
+    ctx.translate(wave.x, wave.y);
 
-      const core = ctx.createRadialGradient(-R * 0.3, -R * 0.3, R * 0.2, 0, 0, R);
-      core.addColorStop(0, '#d7f5f1');
-      core.addColorStop(0.5, '#4fb8af');
-      core.addColorStop(1, '#2f9088');
-      ctx.fillStyle = core;
-      ctx.beginPath();
-      ctx.arc(0, 0, R, 0, Math.PI * 2);
-      ctx.fill();
+    // 파면 안쪽 옅은 플래시
+    const fill = ctx.createRadialGradient(
+      0,
+      0,
+      Math.max(1, wave.radius - SHOCKWAVE_THICKNESS * 2.2),
+      0,
+      0,
+      Math.max(2, wave.radius),
+    );
+    fill.addColorStop(0, 'rgba(255, 240, 205, 0)');
+    fill.addColorStop(0.75, `rgba(255, 233, 176, ${0.06 * alpha})`);
+    fill.addColorStop(1, `rgba(255, 221, 143, ${0.3 * alpha})`);
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.arc(0, 0, Math.max(2, wave.radius), 0, Math.PI * 2);
+    ctx.fill();
 
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(0, 0, R, 0, Math.PI * 2);
-      ctx.stroke();
+    // 바깥 넓은 링
+    ctx.strokeStyle = `rgba(255, 208, 120, ${0.45 * alpha})`;
+    ctx.lineWidth = width * 1.6;
+    ctx.beginPath();
+    ctx.arc(0, 0, wave.radius, 0, Math.PI * 2);
+    ctx.stroke();
 
-      ctx.restore();
-    }
+    // 안쪽 밝은 링
+    ctx.strokeStyle = `rgba(255, 250, 232, ${0.95 * alpha})`;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.arc(0, 0, wave.radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.restore();
   }
 }
