@@ -18,3 +18,9 @@ export const JELLY_LEVEL_SPEED_BONUS = 12; // px/s per level above 1
 export const JELLY_LEVEL_SPAWN_BONUS_MS = 60; // ms shaved off spawn interval per level above 1
 
 export const SCORE_PER_SECOND = 10;
+
+// --- 개발/테스트 ---
+// true 면 게임 시작 직후 5종 아이템을 하나씩 화면에 배치하고,
+// 이후 랜덤 스폰도 레벨 해금과 무관하게 전 종류에서 뽑는다.
+// 배포 전에는 false 로 되돌릴 것.
+export const TEST_SPAWN_ALL_ITEMS = true;

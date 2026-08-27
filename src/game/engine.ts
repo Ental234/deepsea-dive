@@ -13,6 +13,7 @@ import {
   JELLY_SPAWN_RAMP_PER_SEC,
   JELLY_SPEED_RAMP_PER_SEC,
   SCORE_PER_SECOND,
+  TEST_SPAWN_ALL_ITEMS,
 } from './constants';
 import {
   CORAL_BARRIER_FIRE_SPEED,
@@ -25,17 +26,25 @@ import {
   ITEM_SPAWN_INTERVAL_MAX_MS,
   ITEM_SPAWN_INTERVAL_MIN_MS,
   JELLY_KILL_BONUS_SCORE,
+  MISSILE_BARRAGE_DURATION_MS,
   MISSILE_COUNT,
   MISSILE_MAX_LIFETIME_MS,
   MISSILE_RADIUS,
   MISSILE_SPEED,
+  MISSILE_VOLLEY_INTERVAL_MS,
   PUFFER_DURATION_MS,
+  SHIELD_BLINK_START_MS,
   SHIELD_DURATION_MS,
   WHALE_SHARK_RADIUS,
   WHALE_SHARK_SPEED,
   type ItemType,
 } from './items';
-import { getLevelForScore, getUnlockedItemTypes, getUnlockedSpawnEdges } from './leveling';
+import {
+  ITEM_UNLOCK_ORDER,
+  getLevelForScore,
+  getUnlockedItemTypes,
+  getUnlockedSpawnEdges,
+} from './leveling';
 import type {
   CoralBarrierState,
   GameOverResult,
@@ -94,7 +103,13 @@ export class GameEngine {
 
   private coralBarrier: CoralBarrierState | null = null;
 
+  // 산호가시 유도탄: 픽업 시 일정 시간 동안 주기적으로 소량 연사
+  private missileBarrage: { msLeft: number; msUntilNextVolley: number } | null = null;
+
   private invincibleUntil = 0; // elapsedSeconds 기준 시각
+  private shieldBlinkPhase = 0; // 실드 종료 직전 점멸용 누적 위상
+
+  private testItemsSpawned = false; // TEST_SPAWN_ALL_ITEMS 초기 배치 완료 여부
 
   private fishFacing = 1; // 1 = 오른쪽, -1 = 왼쪽
   private fishTilt = 0; // 이동 방향에 따른 몸통 기울기 (rad)
@@ -201,14 +216,21 @@ export class GameEngine {
     this.elapsedSeconds += dt;
     this.score += dt * SCORE_PER_SECOND;
 
+    if (TEST_SPAWN_ALL_ITEMS && !this.testItemsSpawned && this.width > 0 && this.height > 0) {
+      this.spawnAllItemsForTest();
+      this.testItemsSpawned = true;
+    }
+
     this.updateBubbles(dt);
     this.moveFish(dt);
+    this.updateShieldBlink(dt);
     this.spawnJellies(dt);
     this.moveJellies(dt);
 
     this.spawnItems(dt);
     this.collectItems();
 
+    this.updateMissileBarrage(dt);
     this.updateMissiles(dt);
     this.updateWhaleSharks(dt);
     this.updateCoralBarrier(dt);
@@ -363,8 +385,10 @@ export class GameEngine {
 
     if (this.items.length >= ITEM_MAX_CONCURRENT) return;
 
-    const unlockedTypes = getUnlockedItemTypes(getLevelForScore(this.score));
-    const type = unlockedTypes[Math.floor(Math.random() * unlockedTypes.length)];
+    const pool = TEST_SPAWN_ALL_ITEMS
+      ? ITEM_UNLOCK_ORDER
+      : getUnlockedItemTypes(getLevelForScore(this.score));
+    const type = pool[Math.floor(Math.random() * pool.length)];
 
     this.items.push({
       id: this.nextItemId++,
@@ -372,6 +396,32 @@ export class GameEngine {
       x: ITEM_RADIUS + Math.random() * (this.width - ITEM_RADIUS * 2),
       y: 90 + Math.random() * (this.height - 130),
     });
+  }
+
+  /** 테스트용: 5종 아이템을 화면 상단에 가로로 하나씩 배치 */
+  private spawnAllItemsForTest() {
+    const margin = ITEM_RADIUS + 16;
+    const span = this.width - margin * 2;
+    ITEM_UNLOCK_ORDER.forEach((type, i) => {
+      this.items.push({
+        id: this.nextItemId++,
+        type,
+        x: margin + (span * (i + 0.5)) / ITEM_UNLOCK_ORDER.length,
+        y: this.height * 0.3,
+      });
+    });
+  }
+
+  /** 실드/가시복 종료 직전 점멸: 남은 시간이 짧을수록 빠르게 */
+  private updateShieldBlink(dt: number) {
+    const remainingMs = (this.invincibleUntil - this.elapsedSeconds) * 1000;
+    if (remainingMs > 0 && remainingMs < SHIELD_BLINK_START_MS) {
+      const k = remainingMs / SHIELD_BLINK_START_MS; // 1 → 0
+      const freqHz = 4 + (1 - k) * 10; // 4Hz → 14Hz
+      this.shieldBlinkPhase += freqHz * Math.PI * 2 * dt;
+    } else {
+      this.shieldBlinkPhase = 0;
+    }
   }
 
   private collectItems() {
@@ -392,7 +442,7 @@ export class GameEngine {
         this.invincibleUntil = this.elapsedSeconds + PUFFER_DURATION_MS / 1000;
         break;
       case 'coralMissile':
-        this.fireMissiles();
+        this.startMissileBarrage();
         break;
       case 'whaleShark':
         this.spawnWhaleShark();
@@ -403,7 +453,31 @@ export class GameEngine {
     }
   }
 
-  private fireMissiles() {
+  private startMissileBarrage() {
+    this.fireMissileVolley(); // 픽업 즉시 1회
+    this.missileBarrage = {
+      msLeft: MISSILE_BARRAGE_DURATION_MS,
+      msUntilNextVolley: MISSILE_VOLLEY_INTERVAL_MS,
+    };
+  }
+
+  private updateMissileBarrage(dt: number) {
+    const barrage = this.missileBarrage;
+    if (!barrage) return;
+
+    const ms = dt * 1000;
+    barrage.msLeft -= ms;
+    barrage.msUntilNextVolley -= ms;
+
+    if (barrage.msUntilNextVolley <= 0 && barrage.msLeft > 0) {
+      this.fireMissileVolley();
+      barrage.msUntilNextVolley += MISSILE_VOLLEY_INTERVAL_MS;
+    }
+
+    if (barrage.msLeft <= 0) this.missileBarrage = null;
+  }
+
+  private fireMissileVolley() {
     for (let i = 0; i < MISSILE_COUNT; i++) {
       const target = this.jellies[Math.floor(Math.random() * this.jellies.length)] as
         | Jellyfish
@@ -649,10 +723,16 @@ export class GameEngine {
     ctx.rotate(this.fishTilt);
     ctx.scale(this.fishFacing, 1);
 
-    // 무적 상태 펄스 링
+    // 무적 상태 펄스 링 (종료 직전에는 점멸)
     if (t < this.invincibleUntil) {
       const pulse = 1 + Math.sin(t * 8) * 0.12;
+      const remainingMs = (this.invincibleUntil - t) * 1000;
+      const blink =
+        remainingMs < SHIELD_BLINK_START_MS
+          ? 0.12 + 0.88 * (0.5 + 0.5 * Math.sin(this.shieldBlinkPhase))
+          : 1;
       ctx.save();
+      ctx.globalAlpha = blink;
       ctx.strokeStyle = 'rgba(173, 232, 244, 0.9)';
       ctx.lineWidth = 2.5;
       ctx.beginPath();
