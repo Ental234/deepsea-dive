@@ -8,9 +8,10 @@ interface GameOverScreenProps {
   result: GameOverResult;
   onRetry: () => void;
   onSubmitted: (nickname: string) => void;
+  onExit: () => void;
 }
 
-export function GameOverScreen({ result, onRetry, onSubmitted }: GameOverScreenProps) {
+export function GameOverScreen({ result, onRetry, onSubmitted, onExit }: GameOverScreenProps) {
   const [nickname, setNickname] = useState('');
   const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle');
 
@@ -54,6 +55,9 @@ export function GameOverScreen({ result, onRetry, onSubmitted }: GameOverScreenP
           </button>
           <button className={styles.retryButton} onClick={onRetry}>
             다시 시작
+          </button>
+          <button className={styles.exitButton} onClick={onExit}>
+            타이틀로
           </button>
         </div>
       </div>

@@ -83,3 +83,16 @@
   font-weight: 800;
   font-size: 16px;
 }
+
+.exitButton {
+  border: none;
+  border-radius: 999px;
+  padding: 10px;
+  width: 100%;
+  background: transparent;
+  color: oklch(50% 0.02 240);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 14px;
+  margin-top: 6px;
+}

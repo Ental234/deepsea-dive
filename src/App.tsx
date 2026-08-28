@@ -34,6 +34,7 @@ function App() {
           onSubmitted={(nickname) =>
             setScreen({ name: 'ranking', justSubmitted: { nickname, score: screen.result.score } })
           }
+          onExit={() => setScreen({ name: 'start' })}
         />
       );
     case 'ranking':
