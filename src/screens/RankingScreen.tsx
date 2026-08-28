@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchTopScores, type ScoreRow } from '../lib/supabase';
+import { fetchScoreRank, fetchTopScores, type ScoreRow } from '../lib/supabase';
 import shellStyles from './Screen.module.css';
 import styles from './RankingScreen.module.css';
 
@@ -18,12 +18,38 @@ function rankClassName(rank: number): string {
 export function RankingScreen({ onBack, justSubmitted }: RankingScreenProps) {
   const [scores, setScores] = useState<ScoreRow[] | null>(null);
   const [error, setError] = useState(false);
+  const [myRank, setMyRank] = useState<number | null>(null);
 
   useEffect(() => {
     fetchTopScores()
       .then(setScores)
       .catch(() => setError(true));
   }, []);
+
+  const isInList =
+    !!justSubmitted &&
+    !!scores?.some(
+      (row) => row.nickname === justSubmitted.nickname && row.score === justSubmitted.score,
+    );
+
+  // 상위 목록에 내 기록이 없으면(20위 밖) 내 순위를 따로 조회한다.
+  useEffect(() => {
+    if (!justSubmitted || scores === null || isInList) {
+      setMyRank(null);
+      return;
+    }
+    let cancelled = false;
+    fetchScoreRank(justSubmitted.score)
+      .then((rank) => {
+        if (!cancelled) setMyRank(rank);
+      })
+      .catch(() => {
+        if (!cancelled) setMyRank(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [justSubmitted, scores, isInList]);
 
   return (
     <div className={shellStyles.shell}>
@@ -58,6 +84,16 @@ export function RankingScreen({ onBack, justSubmitted }: RankingScreenProps) {
               );
             })}
           </div>
+
+          {justSubmitted && !isInList && myRank !== null && (
+            <div className={styles.myRankFooter}>
+              <div className={`${styles.row} ${styles.rowMine}`}>
+                <div className={styles.rank}>{myRank}</div>
+                <div className={styles.nickname}>{justSubmitted.nickname}</div>
+                <div className={styles.score}>{justSubmitted.score}</div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

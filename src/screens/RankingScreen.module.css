@@ -110,3 +110,10 @@
   text-align: center;
   padding: 40px 0;
 }
+
+.myRankFooter {
+  margin-top: 10px;
+  background: var(--color-surface);
+  border-radius: 20px;
+  padding: 8px;
+}

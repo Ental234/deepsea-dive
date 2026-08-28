@@ -41,3 +41,14 @@ export async function fetchTopScores(): Promise<ScoreRow[]> {
   if (error) throw error;
   return data;
 }
+
+// 주어진 점수보다 높은 기록 수 + 1 = 해당 점수의 순위.
+// 동점자는 같은(가장 높은) 순위로 계산된다.
+export async function fetchScoreRank(score: number): Promise<number> {
+  const { count, error } = await requireClient()
+    .from('scores')
+    .select('*', { count: 'exact', head: true })
+    .gt('score', score);
+  if (error) throw error;
+  return (count ?? 0) + 1;
+}
